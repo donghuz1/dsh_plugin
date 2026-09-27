@@ -98,31 +98,50 @@ dsh_plugin/
 
 ## 实施步骤
 
-- [ ] 0. git：`main` 初始提交 → `develop` → 切 `feature/qoder-theme`
-- [ ] 1. 最小可安装骨架（package.json / patch / client.js / build.mjs）先装一版**原样皮肤**，确认链路通（`application: applied` + client 模块出现在页面）
-- [ ] 2. 建 `test/contract.test.mjs`：解析 DSH 的 `design-platform.css` 与 slot 清单，校验本插件引用的每个令牌名与 slot 名真实存在
-- [ ] 3. 暗色色阶 + 硬编码别名 + 强调色（主要工作量）
-- [ ] 4. 亮色适配
-- [ ] 5. `surfaces.css`：辉光、composer、活动行、气泡、动效曲线
-- [ ] 6. 全量门禁：跑 contract 测试、重建、重装、确认服务端产物含新 CSS
-- [ ] 7. 文档：README + 决策笔记（含 Qoder 取证方法与证据分级）
-- [ ] 8. review 段与经验沉淀
+- [x] 0. git：`main` 初始提交 → `develop` → 切 `feature/qoder-theme`
+- [x] 1. 最小可安装骨架先装一版，确认链路通（`application: applied`，行进入 Loader 组合）
+- [x] 2. 建 `test/contract.test.mjs`：令牌名对照 DSH 真实样式表逐个校验
+- [x] 3. 暗色色阶 + 硬编码别名 + 强调色（主要工作量）
+- [x] 4. 亮色适配
+- [x] 5. 圆角形状与动效令牌
+- [x] 6. 门禁：contract 测试全绿、重建、验证产物
+- [x] 7. 文档：README + 决策笔记 + 证据分级
+- [x] 8. review 段
+
+**执行中的两处偏离**（详见 `docs/notes/2026-09-27-0001-主题覆盖走令牌层.md`）：
+
+1. **覆盖方式改用 `ctx.theme.overrideTokens`**，不再注入 `<style>` 样式表。这是查客户端 Service 目录时发现的 DSH 一等公民主题接口：按来源分层、要求亮/暗成对、落地为 `body` 内联属性，因而没有特异性与加载顺序问题。`surfaces.css` 随之取消，圆角与动效令牌并入 `shared.css`。
+2. **不做几何改写与品牌辉光。** 原计划的 `[data-slot]` 定位改写需要目视验证才能确认放置正确，在无浏览器控制的前提下猜测位置的风险高于收益，故本版不做，留待首次目视确认后在同一插件内补上。
 
 ## 验收标准
 
-1. `node build.mjs` 通过，`node --check client.js` 通过。
-2. `test/contract.test.mjs` 全绿：所有引用的 `--dsw-*` 令牌名与 `[data-slot]` key 均在真实 DSH 中存在（防静默失效）。
-3. `plugin_manager` 返回 `application: applied`；`@local/dsh-qoder-theme` 出现在客户端的已加载模块中。
-4. 服务端 `GET /plugins` 相关产物包含本插件基于 Qoder 色值的样式（可 curl 验证）。
-5. **视觉结果由用户在 GUI 中确认**——本会话无浏览器控制能力，我方不做也无法做截图验证；此限制须在交付说明中明示。
-6. 停用插件后界面恢复原生观感，无残留样式（`ctx.effect` 清理正确）。
+1. `node build.mjs` 通过（含亮/暗成对断言），`node --check client.js` 通过。 ✅
+2. `test/contract.test.mjs` 全绿：79 个令牌名均在真实 DSH 中存在。 ✅ 并已实测「注入一个拼错的令牌名可让该用例失败」。
+3. `plugin_manager` 返回 `application: applied`；`include:qoder-theme` 出现在 Host 的 Config 目录中（即已被 Loader 组合）。 ✅
+4. ~~服务端 `GET /plugins` 产物可 curl 验证~~ —— **不成立**。对照实验显示 Desktop 壳的内置插件在 `/plugins` 同样返回 404，该路由不用于 Electron 壳分发，此验证路径关闭。
+5. **视觉结果由用户在 GUI 中确认**——本会话无浏览器控制能力。 ⏳ 待用户确认
+6. 停用后恢复原生观感：由 `overrideTokens` 的 disposer 与 `ctx.effect` 对齐保证。 ⏳ 待用户确认
+
+## Review
+
+**交付物**：`@local/dsh-qoder-theme`——树外零依赖 bundle，79 个令牌（亮/暗成对 + 5 个共享），覆盖色阶、语义色、边框、对话表面、圆角形状与动效曲线。
+
+**已验证**：构建与语法、契约测试 7/7（含门禁自证能失败）、安装返回 `application: applied`、Loader 组合含本行、`client.js` 在桩上下文中真实产出正确的 `overrideTokens` 调用。
+
+**未验证**：实际视觉观感与停用后的还原效果。交付环境无浏览器控制能力，HTTP 亦无法取到壳分发的 bundle。这两项需用户在 GUI 中确认。
+
+**升级路径**：`client.js` 改动后需刷新页面载入新的模块代；`src/*.css` 是唯一真源，改后必须重新 `build`。
+
+**遗留**：品牌辉光与 `[data-slot]` 几何微调（需目视确认后追加）；重复 `install_bundle` 会返回 `ambiguous-install`，属预期——包已在 profile 中，改动经 `link:` 直接生效。
 
 ## 风险与不做的事
 
 | 项 | 说明 |
 | --- | --- |
-| 圆角无法全局主题化 | 事实 6。仅对 `[data-slot]` 锚点局部处理，接受其余保持 DSH 原值 |
-| 视觉验证缺位 | 事实 9。以契约测试 + 产物检查代替，剩余风险由用户目视确认 |
-| 迭代需重启 | 事实 8。首次安装可 HMR 生效；后续替换包体需重启 |
-| hashed 类名不稳定 | 全程不使用，只用令牌与 `[data-slot]` |
+| 圆角无法全局主题化 | DSH 没有圆角语义令牌，`border-radius` 是 176 个 CSS module 里的字面量。接受其余保持 DSH 原值 |
+| 令牌名静默失效 | `overrideTokens` 不校验令牌名。由契约测试对照真实样式表兜住，并已实测门禁可失败 |
+| 视觉验证缺位 | 以契约测试 + 对比度断言 + 组合状态检查代替，剩余风险由用户目视确认 |
+| 迭代需刷新 | `link:` 使文件改动直接生效，但浏览器需刷新才能载入新的模块代 |
+| hashed 类名不稳定 | 全程不使用，只用令牌 |
 | 不做 | 不新增面板/设置页；不改布局；不改任何交互逻辑；不做多主题切换器（启用/停用走插件管理器） |
+
