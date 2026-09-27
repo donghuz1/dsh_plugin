@@ -1,0 +1,63 @@
+/*
+ * 亮色中性色阶 —— 令牌集合与 ramp.dark.css 逐个对应。
+ *
+ * 证据强度低于暗色：Qoder 客户端亮色态无真实截图，取值来自 qoder.com
+ * [data-theme=light] 的 token 原文，表面角色映射属适配而非还原。
+ * 一处刻意的偏离见 alias.light.css 的链接色。
+ *
+ * 亮色不消费的令牌（如 deepseek-300/600/800/900）沿用暗色值，仅用于满足
+ * 「每个令牌都要成对」的契约，在亮色下不产生效果。
+ */
+--dsw-static-neutral-bluish-00: #ffffff; /* 应用底 · 各层浮起面 */
+--dsw-static-neutral-bluish-50: #fafafa; /* 代码块 · 登录输入框 */
+--dsw-static-neutral-bluish-60: #f5f5f3; /* module-platform · 多选底 · 选择器 · tip */
+--dsw-static-neutral-bluish-75: #f2f2f0; /* 浮动按钮悬停 · markdown 标签 · 侧栏悬停项 */
+--dsw-static-neutral-bluish-100: #ebebe8; /* 侧栏选中项 · markdown 引用块 */
+--dsw-static-neutral-bluish-150: #e9e9e6; /* 提问卡片底 */
+--dsw-static-neutral-bluish-200: #e5e5e2; /* label-dimmed · 滚动条 */
+--dsw-static-neutral-bluish-300: #d5d5d1;
+--dsw-static-neutral-bluish-400: #8e8c8b; /* label-caption */
+--dsw-static-neutral-bluish-500: #bcbbba; /* button-ghost-active-border */
+--dsw-static-neutral-bluish-600: #838280; /* label-tertiary（3.8:1） */
+--dsw-static-neutral-bluish-700: #636261; /* label-secondary · button-contrast-fill（6.1:1） */
+--dsw-static-neutral-bluish-750: #434340; /* 文档预览底 */
+--dsw-static-neutral-bluish-800: #2e2d2b; /* toast 底 */
+--dsw-static-neutral-bluish-850: #232320; /* tooltip 底 */
+--dsw-static-neutral-bluish-875: #252422;
+--dsw-static-neutral-bluish-900: #1a1b1c;
+--dsw-static-neutral-bluish-950: #262522; /* label-primary-dimmed */
+--dsw-static-neutral-bluish-1000: #141414; /* label-primary（18.4:1） */
+
+--dsw-static-neutral-50: #f7f7f5; /* markdown 行内代码 */
+--dsw-static-neutral-200: #e3e3e0; /* 滚动条 */
+--dsw-static-neutral-300: #d5d5d1; /* 滚动条悬停 */
+--dsw-static-neutral-550: #6b6961;
+--dsw-static-neutral-600: #57564f;
+--dsw-static-neutral-700: #3d3c37;
+--dsw-static-neutral-800: #2a2926;
+--dsw-static-neutral-850: #232320;
+
+/* deepseek 蓝阶 -> Qoder 绿阶；仍需蓝色的消费者在 alias.light.css 改回 */
+--dsw-static-deepseek-50: #eaf7e7; /* 用户气泡底（Qoder primary-bg） */
+--dsw-static-deepseek-100: #ddf2d9;
+--dsw-static-deepseek-200: #cdecc8; /* 气泡高亮 */
+--dsw-static-deepseek-300: #bdf2bb;
+--dsw-static-deepseek-400: #75bb6b;
+--dsw-static-deepseek-450: #27bd51;
+--dsw-static-deepseek-500: #80c776; /* Qoder 亮色品牌绿 */
+--dsw-static-deepseek-600: #1c8c3c;
+--dsw-static-deepseek-800: #16301c;
+--dsw-static-deepseek-900: #12240f;
+
+/* 语义色 */
+--dsw-static-green-100: #eefaf1;
+--dsw-static-green-400: #8cc7a3;
+--dsw-static-green-500: #73b78e;
+--dsw-static-green-900: #1c3024;
+--dsw-static-amber-100: #fefbe8;
+--dsw-static-amber-400: #f4c469;
+--dsw-static-amber-500: #efb041;
+--dsw-static-amber-600: #e0a233;
+--dsw-static-amber-900: #2a231c;
+--dsw-static-red-400: #ea7485;
+--dsw-static-red-600: #ec5b56;

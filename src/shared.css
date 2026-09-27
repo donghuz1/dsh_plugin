@@ -1,0 +1,21 @@
+/*
+ * 与配色无关的令牌 —— 两个调色板取同值，故只声明一次。
+ *
+ * 圆角形状：Qoder 用普通圆弧，DSH 默认 superellipse(1.5) 方圆形。
+ *   跟随 Qoder 关掉方圆形。DSH 把消费这条令牌的 * 规则包在
+ *   @supports 里，所以浏览器不支持时这里设值也无副作用。
+ * 动效：取 Qoder 的曲线与时长刻度。DSH 原生为 cubic-bezier(0.4,0,0.2,1) / 0.2s，
+ *   Qoder 用更快的响应与更「收」的缓出曲线。
+ *
+ * 这里刻意不做的事：
+ *   · 不用 [data-slot] 定位做几何改写。DSH 的圆角是 176 个 CSS module 里的字面量、
+ *     没有语义令牌，只能靠结构选择器硬改，而本插件无法目视验证结果。
+ *   · 不注入品牌辉光。辉光需要依赖具体容器的定位上下文，猜测放置位置的风险高于收益。
+ *   · 不改字体栈。DSH 的 UI 字体已是 macOS 系统栈（与 Qoder 的回退结果等价），
+ *     代码字体 SF Mono 亦不弱于 Qoder 的 Menlo，为改而改是净损失。
+ */
+--dsw-corner-shape: round;
+--ds-ease-in-out: cubic-bezier(0.22, 1, 0.36, 1);
+--ds-transition-duration: 0.18s;
+--ds-transition-duration-fast: 0.12s;
+--ds-transition-duration-slow: 0.26s;

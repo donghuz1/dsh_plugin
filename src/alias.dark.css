@@ -1,0 +1,48 @@
+/*
+ * 暗色别名补丁 —— 只处理两类：
+ *   1. 不引用色阶、DSH 里写死 rgba 的别名；
+ *   2. 一个色阶步骤被多个角色共用、但 Qoder 给它们的值不同的冲突点。
+ * 与 alias.light.css 的令牌集合必须逐个对应。
+ */
+/* 品牌强调色：驱动主按钮填充、Switch、Checkbox、Input 聚焦边框与 focus outline，
+   改这一处即整条强调色链路贯通；绿底文字 7.25:1 */
+--dsw-alias-brand-primary: #27bd51;
+--dsw-alias-brand-primary-new-colorprimary-new-color: #27bd51;
+--dsw-alias-button-primary-hover: #3ad368;
+--dsw-alias-button-primary-dimmed: #1f381f;
+--dsw-alias-label-primary-foreground: #171716;
+
+/* 仍需蓝色的消费者：deepseek 阶已整体转为绿，这里改回 Qoder 的 info 蓝 */
+--dsw-alias-state-business-primary: #4d7fe2;
+--dsw-alias-state-business-tertiary: #182231;
+--dsw-alias-button-info-fill: #4d7fe2;
+--dsw-alias-button-info-hover: #6a97ea;
+--dsw-alias-link: #87d578; /* Qoder 暗色链接本身即绿（10.7:1） */
+
+/* 边框：Qoder 是实色发丝线，此处保留半透明以实现同样的自适应叠加。
+   在应用底 #0f1012 上换算约 #1e1e1c / #2b2b28，与 Qoder 实测的
+   #1d1d1b / #2a2926 基本重合，但在浅色表面上不会变成一道深色硬线。 */
+--dsw-alias-border-l1: rgba(238, 238, 235, 0.06);
+--dsw-alias-border-l2-darkmode-thin: rgba(238, 238, 235, 0.06);
+--dsw-alias-border-l2: rgba(238, 238, 235, 0.12);
+--dsw-alias-border-l3: rgba(238, 238, 235, 0.16);
+--dsw-alias-border-l4: rgba(238, 238, 235, 0.2);
+
+/* 交互底色：暖白微光 + 品牌绿强调 */
+--dsw-alias-interactive-bg-hover: rgba(238, 238, 235, 0.07);
+--dsw-alias-interactive-bg-active: rgba(238, 238, 235, 0.12);
+--dsw-alias-interactive-bg-hover-accent: rgba(39, 189, 81, 0.16);
+
+/* 工具条 / 拖拽遮罩 */
+--dsw-alias-button-tool-bar-fill-invisible: rgba(20, 20, 18, 0.36);
+--dsw-alias-button-tool-bar-fill: rgba(84, 82, 74, 0.5);
+--dsw-alias-button-tool-bar-hover: rgba(84, 82, 74, 0.6);
+--dsw-alias-bg-mask-drop: rgba(42, 41, 38, 0.7);
+
+/* 冲突点：色阶步骤被多角色共用。提问卡片底（DSH 取值偏中间灰，Qoder 为深色浮层） */
+--dsw-alias-bg-overlay: #1f1f1c;
+
+/* 对话表面：Qoder 的层次极克制，靠发丝描边而非明显色差分隔 */
+--dsw-specific-bubble: #1f1f1c;
+--dsw-specific-input-major: #171716;
+--dsw-specific-sidebar-fill: #1a1b1c;

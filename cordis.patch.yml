@@ -1,0 +1,5 @@
+# 本插件对 desktop profile 的 patch 层：插入一行客户端主题插件。
+# 只声明客户端半区——本插件没有 Host 行为。
+- insert:
+    - id: qoder-theme
+      name: '@local/dsh-qoder-theme'
