@@ -17,9 +17,9 @@
 
 ## 前置阅读（约 40 分钟）
 
-- `docs/cordis-tutorial/02-lifecycle-and-effects.zh.md` —— effect 与撤销
-- `docs/cordis-tutorial/04-events.zh.md` —— 事件模式
-- `docs/cordis-tutorial/05-config.zh.md` —— Config schema
+- [02-lifecycle-and-effects](../参考/dsh-官方文档/cordis-tutorial/02-lifecycle-and-effects.zh.md) —— effect 与撤销
+- [04-events](../参考/dsh-官方文档/cordis-tutorial/04-events.zh.md) —— 事件模式
+- [05-config](../参考/dsh-官方文档/cordis-tutorial/05-config.zh.md) —— Config schema
 - 本仓库 [DSH 插件系统](../架构/dsh-插件系统.md) 第四、五节 —— 插件形态与运行时
 
 ## 已核实的契约

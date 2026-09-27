@@ -1,0 +1,10 @@
+# 本目录的快照来源
+#
+# 由 docs/参考/刷新-dsh-官方文档.mjs 生成，请勿手改。
+
+上游仓库：/Users/xdd/Code/project/self/deepseek-harness
+上游分支：master
+上游提交：ddefc45fbc7f8e46dd73185e68295696d1297887
+提交日期：2026-09-17
+工作树干净：是（快照可复现）
+文件数：23

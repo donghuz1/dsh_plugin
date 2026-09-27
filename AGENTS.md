@@ -19,9 +19,9 @@ dsh_plugin/
 ├── AGENTS.md                    # 本文件
 ├── README.md                    # 仓库总览与插件清单
 ├── docs/                        # 仓库级文档（跨插件的常驻知识）
-│   ├── 架构/
-│   ├── 证据/
-│   ├── notes/                   # 跨插件决策笔记
+│   ├── 架构/                    # DSH 机制说明
+│   ├── 指南/                    # 上手路线、demo 教程
+│   ├── 参考/dsh-官方文档/        # 上游文档快照（生成物，勿手改）
 │   └── tasks/todo.md            # 仓库级任务
 ├── tmp/<yy-MM-dd>/              # 临时文件与调研产物（已 gitignore）
 └── plugins/
@@ -101,12 +101,29 @@ $NODE build.mjs && git diff --quiet -- client.js || echo "client.js 与源不同
 | 内容 | 家 |
 | --- | --- |
 | 跨插件的常驻知识（DSH 机制、通用约定、可复用的接口说明） | `docs/` |
+| **上游 DSH 官方文档的快照** | `docs/参考/dsh-官方文档/`（生成物，勿手改） |
 | 插件专属的取值、证据分级、决策笔记、任务 | `plugins/<插件名>/docs/` |
 | 仓库级任务（目录调整、约定变更、跨插件工作） | `docs/tasks/todo.md` |
 | 单插件任务 | `plugins/<插件名>/docs/tasks/todo.md` |
 | 临时文件、调研产物、推导脚本 | `tmp/<yy-MM-dd>/<中文子目录>/`，插件专属的再加一层插件名 |
 
 一条内容只有一个家，别处只留指向。
+
+### 上游文档快照
+
+`docs/参考/dsh-官方文档/` 是上游中文文档的**逐字节拷贝**，目的是读文档时不用切项目。
+
+- **不要在这个目录里做修正**——下次刷新会覆盖。上游文档有问题去上游提；我们的指南有问题改 `docs/指南/`。
+- 收录范围 = `docs/指南/上手路线.md` 引用的文档 + 它们直接链向的 `docs/` 内 `.zh.md`（两跳）。
+- 快照会过期。判断是否过期看目录里的 `版本.txt`，与上游 `git log -1` 对比。
+
+```bash
+export NODE=~/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/node/bin/node
+$NODE docs/参考/刷新-dsh-官方文档.mjs                    # DSH_SOURCE 默认 ../deepseek-harness
+$NODE docs/参考/刷新-dsh-官方文档.mjs --with-english     # 同时拷英文对照
+```
+
+改 `docs/指南/上手路线.md` 的引用时，同步更新刷新脚本里的 `SEEDS`。
 
 ## 四、决策笔记编号
 
