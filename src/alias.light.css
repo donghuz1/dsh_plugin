@@ -1,0 +1,47 @@
+/*
+ * 亮色别名补丁 —— 令牌集合与 alias.dark.css 逐个对应。
+ * 亮色不消费的令牌沿用与暗色同构的取值，仅用于满足成对契约。
+ */
+/* 品牌强调色：沿用与暗色相同的 Qoder IDE 绿，保证两套主题品牌一致。
+   Qoder 亮色的 #80c776 作填充时白字仅 2.03:1，故改用 #27bd51 配深色文字 7.25:1 */
+--dsw-alias-brand-primary: #27bd51;
+--dsw-alias-brand-primary-new-colorprimary-new-color: #27bd51;
+--dsw-alias-button-primary-hover: #3ad368;
+--dsw-alias-button-primary-dimmed: #ddf2d9;
+--dsw-alias-label-primary-foreground: #171716;
+
+/* 改回蓝色：deepseek 阶在亮色下已转为绿 */
+--dsw-alias-state-business-primary: #3b81e9;
+--dsw-alias-state-business-tertiary: #e9f6fe;
+--dsw-alias-button-info-fill: #3b81e9;
+--dsw-alias-button-info-hover: #5a97ee;
+/* 链接：刻意偏离。Qoder 亮色链接 #80c776 在白底上仅 2.03:1，不可读；
+   改用同色系深绿 #2e7d32（5.13:1，AA） */
+--dsw-alias-link: #2e7d32;
+
+/* 边框：保留半透明以自适应叠加；在纯白上换算约 #f0efef / #e6e5e5 / #dbdada /
+   #c2c0c0，与 Qoder 亮色实测的 #efefef / #e6e6e6 / #dddddd / #bcbbba 重合 */
+--dsw-alias-border-l1: rgba(15, 13, 12, 0.06);
+--dsw-alias-border-l2-darkmode-thin: rgba(15, 13, 12, 0.1);
+--dsw-alias-border-l2: rgba(15, 13, 12, 0.1);
+--dsw-alias-border-l3: rgba(15, 13, 12, 0.14);
+--dsw-alias-border-l4: rgba(15, 13, 12, 0.26);
+
+/* 交互底色：暖调微光 + 品牌绿强调 */
+--dsw-alias-interactive-bg-hover: rgba(15, 13, 12, 0.05);
+--dsw-alias-interactive-bg-active: rgba(15, 13, 12, 0.09);
+--dsw-alias-interactive-bg-hover-accent: rgba(39, 189, 81, 0.12);
+
+/* 工具条 / 拖拽遮罩：沿用 DSH 原值，仅统一暖调 */
+--dsw-alias-button-tool-bar-fill-invisible: rgba(31, 31, 31, 0.36);
+--dsw-alias-button-tool-bar-fill: rgba(84, 82, 74, 0.5);
+--dsw-alias-button-tool-bar-hover: rgba(84, 82, 74, 0.6);
+--dsw-alias-bg-mask-drop: rgba(255, 255, 255, 0.7);
+
+/* 冲突点：与代码块共用 bluish-150，此处取 Qoder 亮色浮层底 */
+--dsw-alias-bg-overlay: #e9e9e6;
+
+/* 对话表面：Qoder 亮色为绿调浅底 */
+--dsw-specific-bubble: #eaf7e7;
+--dsw-specific-input-major: #ffffff;
+--dsw-specific-sidebar-fill: #f3f3f3;

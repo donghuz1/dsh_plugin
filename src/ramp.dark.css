@@ -1,0 +1,65 @@
+/*
+ * 暗色中性色阶 —— 按「别名角色」指派。
+ *
+ * DSH 的静态色阶在亮/暗块中共用，语义由别名映射决定；覆盖色阶即可让
+ * 165 个 --dsw-alias-* 自动重算，无需逐个改别名。
+ *
+ * 取值来源：qoder.com CSS token 原文 + IDE 截图像素采样，逐级注释其角色。
+ * Qoder 暗色不是单一暖调：chrome 与编辑器底色偏冷蓝（H≈210–220°），
+ * 容器与文字偏暖黄（H≈45–60°），此处如实保留这一双色调。
+ *
+ * 本文件与 ramp.light.css 的令牌集合必须逐个对应，build.mjs 会断言。
+ */
+--dsw-static-neutral-bluish-00: #ffffff;
+--dsw-static-neutral-bluish-50: #eeeeeb; /* label-primary · brand-text · button-contrast-fill */
+--dsw-static-neutral-bluish-60: #f0f0ed;
+--dsw-static-neutral-bluish-75: #ededea;
+--dsw-static-neutral-bluish-100: #dcdcd8; /* label-primary-dimmed */
+--dsw-static-neutral-bluish-150: #d5d5d1;
+--dsw-static-neutral-bluish-200: #cdcdc9;
+--dsw-static-neutral-bluish-300: #959590; /* label-secondary（6.3:1） */
+--dsw-static-neutral-bluish-400: #7b7b76; /* label-tertiary（4.5:1） */
+--dsw-static-neutral-bluish-500: #6b6961;
+--dsw-static-neutral-bluish-600: #61615c; /* label-caption · button-ghost-active-border */
+--dsw-static-neutral-bluish-700: #4a4a45; /* button-ghost-active-hover */
+--dsw-static-neutral-bluish-750: #484743; /* button-elevated-fill · toast · tooltip · 侧栏选中项 */
+--dsw-static-neutral-bluish-800: #38362f; /* bg-layer-3 · selector · tip · markdown 引用块 */
+--dsw-static-neutral-bluish-850: #2f2e2b; /* bg-layer-2 · 占位块 · 侧栏悬停项 */
+--dsw-static-neutral-bluish-875: #252422; /* bg-layer-1 */
+--dsw-static-neutral-bluish-900: #1a1b1c; /* 侧栏底色 · 代码块（Qoder chrome） */
+--dsw-static-neutral-bluish-950: #0f1012; /* 应用底 · 编辑器画布（Qoder content） */
+--dsw-static-neutral-bluish-1000: #171716; /* 主按钮上的文字 */
+
+--dsw-static-neutral-50: #f7f7f5;
+--dsw-static-neutral-200: #e3e3e0;
+--dsw-static-neutral-300: #d5d5d1;
+--dsw-static-neutral-550: #6b6961;
+--dsw-static-neutral-600: #57564f; /* 滚动条 */
+--dsw-static-neutral-700: #3d3c37; /* 滚动条 */
+--dsw-static-neutral-800: #2a2926; /* markdown 行内代码 */
+--dsw-static-neutral-850: #232320;
+
+/* deepseek 蓝阶整体转为 Qoder 绿阶；仍需蓝色的消费者在 alias.dark.css 改回 */
+--dsw-static-deepseek-50: #1f381f;
+--dsw-static-deepseek-100: #264926;
+--dsw-static-deepseek-200: #cdecc8;
+--dsw-static-deepseek-300: #bdf2bb;
+--dsw-static-deepseek-400: #3ad368;
+--dsw-static-deepseek-450: #27bd51; /* 品牌绿 */
+--dsw-static-deepseek-500: #1fa344;
+--dsw-static-deepseek-600: #1c8c3c;
+--dsw-static-deepseek-800: #16301c;
+--dsw-static-deepseek-900: #12240f;
+
+/* 语义色 */
+--dsw-static-green-100: #eefaf1;
+--dsw-static-green-400: #9cc4a8;
+--dsw-static-green-500: #82b591; /* success（8.1:1） */
+--dsw-static-green-900: #1c3024;
+--dsw-static-amber-100: #fefbe8;
+--dsw-static-amber-400: #efc477;
+--dsw-static-amber-500: #e5b357; /* warn（9.9:1） */
+--dsw-static-amber-600: #d9a94e;
+--dsw-static-amber-900: #2a231c;
+--dsw-static-red-400: #db655c; /* error（5.5:1） */
+--dsw-static-red-600: #ec5b56;
