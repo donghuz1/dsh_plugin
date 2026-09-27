@@ -54,6 +54,21 @@ node --test 'test/*.test.mjs'         # 契约测试
 
 令牌名校验需要 DSH 源码，默认取 `../deepseek-harness`，用 `DSH_SOURCE` 覆盖；源码不存在时该组用例显式跳过并说明，其余照常执行。
 
+### 运行时验证
+
+改完 `client.js` 后，不依赖目视也能确认产物被正确投递：
+
+```bash
+# 1. 读当前 boot graph（client-hmr 的 SSE，无需鉴权），取本行的 url
+curl -N --max-time 3 -s http://127.0.0.1:19387/plugins/events | grep -o '"id":"@local/dsh-qoder-theme"[^}]*}'
+
+# 2. 用该 url 原样请求：应得 200 text/javascript，内容与本地 client.js 逐字节一致
+```
+
+`/plugins` 路由按**含 `rev` 的完整 URL** 精确查表：缺 rev、rev 过期、未公布的组合一律 404，且初始 rev 是每次启动随机生成的 nonce。这是刻意设计（URL 不可伪造、响应可 immutable 缓存），不是故障。
+
+DSH 插件系统的完整机制说明见 [DSH 插件系统](docs/架构/dsh-插件系统.md)。
+
 ## 已知限制
 
 - **圆角无法主题化。** DSH 没有圆角语义令牌，`border-radius` 是 176 个 CSS module 里的字面量，只能靠结构选择器硬改。本插件不做，其余圆角保持 DSH 原值。

@@ -118,7 +118,12 @@ dsh_plugin/
 1. `node build.mjs` 通过（含亮/暗成对断言），`node --check client.js` 通过。 ✅
 2. `test/contract.test.mjs` 全绿：79 个令牌名均在真实 DSH 中存在。 ✅ 并已实测「注入一个拼错的令牌名可让该用例失败」。
 3. `plugin_manager` 返回 `application: applied`；`include:qoder-theme` 出现在 Host 的 Config 目录中（即已被 Loader 组合）。 ✅
-4. ~~服务端 `GET /plugins` 产物可 curl 验证~~ —— **不成立**。对照实验显示 Desktop 壳的内置插件在 `/plugins` 同样返回 404，该路由不用于 Electron 壳分发，此验证路径关闭。
+4. 服务端 `/plugins` 产物可取。 ✅ **此条曾被误判为不可行，已纠正。**
+   起初直接请求 `/plugins/<包名>/client.js` 得 404，我据此判定「Desktop 不走 HTTP 分发 bundle」——**结论错误**。
+   真因是 `bundleResource()` 按**含 `rev` 的完整 URL** 精确查表，缺 rev 或 rev 不匹配一律 404；且初始 rev 是每次启动随机生成的 nonce，外部无法猜出。
+   正确路径是从 `/plugins/events`（client-hmr 的 SSE，无需鉴权）读当前 boot graph 取其公布 URL。实测：
+   `/plugins/??@local/dsh-qoder-theme/client.js&rev=8361b90dadaa` → **200**，
+   产物前 8234 字节与本地 `client.js` **逐字节一致**，仅多出 combo 拼接的 `sourceMappingURL`。
 5. **视觉结果由用户在 GUI 中确认**——本会话无浏览器控制能力。 ⏳ 待用户确认
 6. 停用后恢复原生观感：由 `overrideTokens` 的 disposer 与 `ctx.effect` 对齐保证。 ⏳ 待用户确认
 
