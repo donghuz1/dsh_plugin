@@ -2,7 +2,10 @@
 
 DSH（DeepSeek Harness）插件的容器仓库：一个仓库、多个插件，每个插件一个独立目录。
 
-规则见 [AGENTS.md](AGENTS.md)。DSH 插件系统的机制说明见 [docs/架构/dsh-插件系统.md](docs/架构/dsh-插件系统.md)。
+规则见 [AGENTS.md](AGENTS.md)。
+
+新写插件先读：[上手路线](docs/指南/上手路线.md)（需要哪些前置知识、能做什么）。
+机制说明见 [DSH 插件系统](docs/架构/dsh-插件系统.md)，含「症状 → 原因」对照表。
 
 ## 插件清单
 
@@ -17,7 +20,8 @@ dsh_plugin/
 ├── AGENTS.md          # 仓库规则（目录、命名、门禁、新增插件的步骤）
 ├── README.md          # 本文件
 ├── docs/              # 仓库级文档：跨插件的常驻知识
-│   └── 架构/dsh-插件系统.md
+│   ├── 架构/dsh-插件系统.md
+│   └── 指南/上手路线.md
 ├── tmp/               # 临时文件与调研产物（已 gitignore）
 └── plugins/
     └── qoder-theme/   # 一个插件一个目录

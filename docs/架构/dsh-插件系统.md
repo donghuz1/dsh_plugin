@@ -254,3 +254,47 @@ WebSocket 走另一条头改写钩子，只为归属窗口附 origin/cookie。
 1. **函数插件绝不加 `export default`**；服务插件用 `export default class`。混用静默丢元数据。
 2. **可选服务一律 `ctx.get(name)`**；`ctx.<name>` 只用于已声明的 `inject`。
 3. **令牌名之类的字符串标识不会被运行时校验**——写错只静默失效。用测试对照权威源逐个校验（本仓库的 `test/contract.test.mjs` 就是这么做的）。
+
+## 十一、四个身份字符串
+
+插件里有四个名字，含义不同，最容易搞混：
+
+| 名称 | 例 | 说明 |
+| --- | --- | --- |
+| **包名** | `@local/dsh-qoder-theme` | 模块 specifier，也是浏览器 factory 的 `id` |
+| **行 `id`** | `qoder-theme` | Loader 树里的稳定身份，patch 靠它定位。可自由取名 |
+| **行 `name`** | `@local/dsh-qoder-theme` | 要 `import` 什么。**必须等于包名**，或是文件路径 |
+| **插件导出的 `name`** | `qoder-theme` | 可选，只用于 fiber 诊断 |
+
+必须守住的不变式：
+
+```
+行 name  ==  包名  ==  __ModuleLoader__.load({ id }) 的 id
+```
+
+错了不会报错，只会静默不生效——用契约测试断言它。
+
+## 十二、症状 → 原因
+
+DSH 里绝大多数错误是静默的，这张表按"你看到什么"倒查。
+
+| 症状 | 原因 | 为什么难发现 |
+| --- | --- | --- |
+| 插件装了但完全没反应 | 函数插件加了 `export default`，命名空间被 `unwrapExports` 丢弃 | 静默丢 `inject`/`name`/`Config`（真实事故 0001） |
+| 插件装了但完全没反应 | 缺 Host 入口文件（`exports["."]` / `main` 不可解析） | **非致命**：只写一行 stderr 警告，Desktop 界面上看不到 |
+| 插件装了但完全没反应 | 漏了 `dsh.client.platform: "web"` | 该行不被认作 client 行，静默跳过 |
+| 浏览器半区不加载 | `exports["./client"]` 缺失 | 这条是**响的**：扫描时直接抛错 |
+| 启动失败 | `client.js` 未构建 | `MissingClientBundleError`，提示 run build |
+| `apply` 里什么都没跑 | 声明的 `inject` 服务不存在 | fiber 停在 `PENDING`，不执行也不抛错 |
+| 抛 `cannot get property "x" without inject` | 用 `ctx.x` 读未声明的服务 | 属性代理沿祖先链解析，与全局 store 不同 |
+| 下游行为全消失 | `waterfall` 监听器忘记调用 `next()` | 不调即否决，静默短路 |
+| 插件停用后有残留 | 资源没包在 `ctx.effect()` 里 | 只有 Cordis API 建立的注册会自动撤销 |
+| 样式 / UI 不生效 | 令牌名、slot 名写错 | 字符串标识不做运行时校验 |
+| 重装 / 切启停后插件从 boot graph 消失 | 移动了插件目录，包名没变 | 客户端模块注册表按 specifier 缓存元数据，**只有重启进程才清** |
+
+### 怎么自查
+
+1. **看有没有激活警告**：`dsh: warning: N entry did not activate`，逐行给出 `行id (模块): 原因`。
+2. **看 boot graph**：`curl -N --max-time 3 -s http://127.0.0.1:19387/plugins/events`（client-hmr 的 SSE，无需鉴权）。确认你的插件在不在、`inject`/`immediately` 对不对。
+3. **看产物是否可取**：用 graph 里公布的 `url` 原样请求，与本地产物逐字节比对。
+4. **查 API 而不是猜**：`cordis_inspect_list` → `cordis_inspect_query` 读 Service / Event / Config / Slots / Theme 的确切契约。
