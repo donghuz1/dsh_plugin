@@ -106,6 +106,12 @@ plugins/session-title-rule/
 2. **`DSH_PROFILE` 是 DSH 自己的环境变量**，值是 profile 名（`desktop`）而不是路径；契约测试最初用它拼 profile 路径，导致用例静默跳过。改用 DSH 提供的 `DSH_PROFILE_DIR`。
 3. **补跑的影响面比预想大**：Desktop 启动时保留了 10 个 live 会话，插件加载即给这 10 个（全部非归档、非子会话、非用户改名）都补上了规则标题，每个一次模型调用。这是所选机制的必然结果，已记入 README 与决策笔记的影响段。
 
+### 验收后的修正
+
+**补跑原本不是幂等的。** 首版只跳过 `source.kind === 'user'`（用户改名），没跳过**本插件自己命名过**的会话。后果是每次插件加载（每次启动 Desktop）都会对当时全部活跃会话重跑一遍 `refresh()`：白花模型调用，且标题随模型输出漂移——与 `first-prompt`「一次成型」的语义直接冲突。
+
+修正：补跑按标题来源过滤，只处理无标题、`fallback`、以及别的 provider 命名的会话；本插件命名的（`source.kind === 'provider' && source.provider === 'session-title-rule'`）与用户改名的都跳过。测试从 1 个用例扩成 2 个，覆盖全部五种来源。
+
 ### 遗留
 
 - `first-prompt` 的**自动**路径（新会话首条消息后由服务调度）未经端到端观察——本会话与那 10 个会话走的都是补跑的 `refresh()` 路径。两者共用同一个 `generate()`，差别只在 DSH 自己的调度条件（`session-title/src/index.ts:507-508`，已有测试覆盖）。开一个新会话发一条消息即可确认。

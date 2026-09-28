@@ -207,29 +207,40 @@ test('没有模型路由时不猜测，直接抛错保留原名', async () => {
   await assert.rejects(() => state.provider.generate(request({ route: undefined })), /保留原名/)
 })
 
-test('补跑只刷新该刷新的会话', () => {
+test('补跑只刷新还没有规则标题的会话', () => {
+  const fallback = session('fallback')
+  const legacy = session('legacy')
+  const named = session('named')
   const pinned = session('pinned')
+  const { ctx, state } = makeCtx({
+    sessions: [session('plain'), fallback, legacy, named, pinned],
+    titles: new Map([
+      // DSH 落的 fallback（首条消息截断）——正是要用规则标题替换的对象。
+      [fallback.id, { source: { kind: 'fallback' } }],
+      // 别的 provider 命名的（如内置 provider 的英文标题）——同样该被替换。
+      [legacy.id, { source: { kind: 'provider', provider: 'session-title-first-prompt-llm' } }],
+      // 本插件此前已命名——不重跑，否则每次启动都白跑一遍模型，标题还会漂移。
+      [named.id, { source: { kind: 'provider', provider: 'session-title-rule' } }],
+      // 用户显式改名——不动。
+      [pinned.id, { source: { kind: 'user' } }],
+    ]),
+  })
+  apply(ctx)
+
+  assert.deepEqual(state.refreshed, ['plain', 'fallback', 'legacy'])
+})
+
+test('补跑跳过非主对话与已归档会话', () => {
   const child = session('child', { parentSession: 'root' })
+  const subagent = session('subagent', { origin: 'subagent' })
   const archivedSession = session('archived')
   const { ctx, state } = makeCtx({
-    sessions: [session('plain'), pinned, child, archivedSession],
+    sessions: [session('plain'), child, subagent, archivedSession],
     archived: ['archived'],
-    titles: new Map([[pinned.id, { source: { kind: 'user' } }]]),
   })
   apply(ctx)
 
   assert.deepEqual(state.refreshed, ['plain'])
-})
-
-test('用户已显式改名的会话不被补跑覆盖', () => {
-  const renamed = session('renamed')
-  const { ctx, state } = makeCtx({
-    sessions: [renamed],
-    titles: new Map([[renamed.id, { source: { kind: 'user' } }]]),
-  })
-  apply(ctx)
-
-  assert.deepEqual(state.refreshed, [])
 })
 
 test('workspaceRegistry 缺席时补跑照常进行（归档集合按空处理）', () => {

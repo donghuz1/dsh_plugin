@@ -36,7 +36,7 @@
 | 子会话 / subagent | 不改（`header.parentSession` 或 `origin === 'subagent'`） |
 | 已归档会话 | 不改（补跑时跳过 `workspaceRegistry.archivedSessionIds` 里的 id） |
 | 新会话 | 首条用户消息后自动命名一次（provider 的 `automatic: 'first-prompt'`） |
-| 已有的活跃会话 | 插件加载时补跑一次 `sessionTitle.refresh()`，使当前会话立即拿到规则标题 |
+| 已有的活跃会话 | 插件加载时补跑一次 `sessionTitle.refresh()`，使当前会话立即拿到规则标题；只补**还没有规则标题**的，见下 |
 
 ### 与规则书的三处差异
 
@@ -50,6 +50,7 @@
 - 接管标题的唯一途径是 `ctx.sessionTitle.register(provider)`，而该服务**全局只接受一个 provider**。因此 patch 层必须先禁用内置的 `session-title-llm`，否则本插件的 `register()` 会抛错、整个 fiber 失败。
 - 插件**不 import 任何 `@deepseek-ai/*`**：从插件目录解析它们会 `MODULE_NOT_FOUND`。与 DSH 的全部接触面是四个服务调用（`sessionTitle` / `llm` / `sessions` / `workspaceRegistry`），所有形状假设由 `test/contract.test.mjs` 对照 DSH 源码校验。
 - 标题字节上限 80（profile 里 `session-title` 行的 `maxTitleBytes`），超出会被服务**静默截断**，所以主题先裁到预算内。
+- **补跑是幂等的**：每次插件加载都会执行，但只处理还没有规则标题的会话——无标题、DSH 落的 `fallback`、以及别的 provider 命名的（如内置 provider 的英文标题）才重跑；**本插件命名的**与用户改名的都跳过。省略后一条判定就会在每次启动时对所有活跃会话白跑一遍模型，标题还会随模型输出漂移。
 
 ## 安装
 

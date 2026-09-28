@@ -145,8 +145,15 @@ async function callModel(ctx, request, prompts) {
  * 给进程里已有的活跃会话补跑一次命名。
  *
  * 存在的理由：`first-prompt` 只在首条消息那一刻调度，历史会话的消息早就过去了，
- * 只有显式 `refresh()` 才能补上。跳过三类会话：非主对话、已归档、用户显式改过名的
- * （refresh 是服务的"取消 pin"路径，不该由补跑来触发）。
+ * 只有显式 `refresh()` 才能补上。
+ *
+ * 跳过三类会话，顺序即优先级：
+ * 1. 非主对话——子会话与 subagent 一律不动；
+ * 2. 已归档；
+ * 3. 已经有标题且不该被覆盖的：用户显式改名（`user`），以及**本插件此前已命名**
+ *    的（`provider` 且 provider id 是自己）。后者不可省：补跑每次插件加载都会执行，
+ *    不认自己的成果就会在每次启动时重跑模型，标题还会随模型输出漂移。
+ *    `fallback` 与本插件之外来源的标题仍要补——那正是要用规则标题替换的对象。
  * @param ctx - 暴露 sessions / sessionTitle / workspaceRegistry 的上下文。
  */
 function backfill(ctx) {
@@ -154,7 +161,9 @@ function backfill(ctx) {
   for (const session of ctx.sessions.list()) {
     if (!isEligibleSession(session.header)) continue
     if (archived.has(session.id)) continue
-    if (ctx.sessionTitle.get(session)?.source.kind === 'user') continue
+    const source = ctx.sessionTitle.get(session)?.source
+    if (source?.kind === 'user') continue
+    if (source?.kind === 'provider' && source.provider === PROVIDER_ID) continue
     void ctx.sessionTitle.refresh(session).catch(error => {
       ctx.logger.warn(`session-title-rule: 会话 ${session.id} 未命名：${String(error)}`)
     })
