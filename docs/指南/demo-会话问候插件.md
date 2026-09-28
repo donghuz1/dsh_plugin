@@ -136,15 +136,39 @@ plugin_manager install_bundle /Users/xdd/Code/project/self/dsh_plugin/plugins/gr
 
 ## 1.5 验证 ✅
 
-**① 安装结果**：应返回 `"application": "applied"`，且 `enabled: true`。
+安装返回 `"application": "applied"` 只说明**装上了**，不说明**加载了**。按下面两步分开确认。
 
-**② 行进了 Loader**：
+### ① 行进了 Loader，且 fiber 是 active
+
+```
+plugin_manager action=list_plugins
+```
+
+在你的行（`entryId` 为 `include:greeter`）上期望看到：
+
+```json
+{"entryId":"include:greeter","moduleName":"@local/dsh-greeter","enabled":true,"fiberPhase":"active"}
+```
+
+**`fiberPhase` 才是「我的 `apply` 跑了吗」的权威判据**：
+
+| 值 | 含义 | 下一步 |
+| --- | --- | --- |
+| `active` | 加载成功，`apply` 已执行 | 进阶段 2 |
+| `pending` | 缺依赖服务，`apply` **没执行** | 检查 `inject`——这条**不报错** |
+| `loading` | 正在执行 `apply` | 卡住说明 `apply` 里有 await 没返回 |
+| `failed` | `apply` 抛错，或 Config 校验失败 | 少数会响的错误 |
+| `null` | 没有活 fiber | 行被禁用，或模块没解析成功 |
+
+GUI 里也能看：**设置 → 插件 → 插件列表**。
+
+### ② 交叉确认（可选）
 
 ```
 cordis_inspect_query platform=host provider=Config method=listConfigs input={"name":"@local/dsh-greeter"}
 ```
 
-期望看到：
+期望：
 
 ```json
 { "id": "include:greeter", "patchId": "greeter", "name": "@local/dsh-greeter", "status": "absent" }
@@ -152,7 +176,9 @@ cordis_inspect_query platform=host provider=Config method=listConfigs input={"na
 
 `status: "absent"` 表示该行没有声明 Config schema——本阶段正常。
 
-**③ 没有激活警告**：如果装完什么都没发生，DSH 只会往 stderr 写一行 `dsh: warning: 1 entry did not activate`，你在界面上看不到。所以**看到 ②** 才说明真的装上了。
+### ③ 为什么不能只看安装结果
+
+装完如果什么都没发生，DSH 只会往 stderr 写一行 `dsh: warning: 1 entry did not activate`，而打包后的 Desktop 里**你在界面上看不到它**。所以必须用 `fiberPhase` 主动确认，不能靠"没报错"推断成功。
 
 <details>
 <summary>卡住了？</summary>
@@ -464,12 +490,13 @@ done
 
 # 排错
 
-| 症状 | 原因 |
-| --- | --- |
-| 装完什么都没发生 | 缺 Host 入口，或 `dsh.bundle.patch` 路径不对。**只写 stderr，界面看不到** → 用阶段 1 的 Config 目录检查法 |
-| `apply` 完全没执行 | 声明的 `inject` 服务不存在 → fiber 停在 `PENDING`，不报错 |
-| 段落没进提示词 | `inject` 里漏了 `systemPrompt`；或段落 `name` 与现有重名 |
-| 会话创建失败 | `agent/created` 监听器抛了异常 → 必须自己兜住 |
+| 症状 | 原因 | 先看 `fiberPhase` |
+| --- | --- | --- |
+| 装完什么都没发生 | 缺 Host 入口，或 `dsh.bundle.patch` 路径不对。**只写 stderr，界面看不到** | `null` → 行不存在或模块没解析；`active` → 插件没问题，是你注册的东西没被用到 |
+| `apply` 完全没执行 | 声明的 `inject` 服务不存在 → fiber 停在 `PENDING`，不报错 | `pending` |
+| `apply` 里抛错 | 代码 bug 或 Config 校验失败 | `failed` |
+| 段落没进提示词 | `inject` 里漏了 `systemPrompt`；或段落 `name` 与现有重名 | `pending` 或 `active` |
+| 会话创建失败 | `agent/created` 监听器抛了异常 → 必须自己兜住 | — |
 | 改配置没生效 | 确认写的是 profile 的 `cordis.patch.yml` 且 `id` 对得上；仍不行就重启 |
 | 改代码没生效 | 已安装包的 JS 需要重启进程才能换模块代 |
 | 重装后插件消失了 | 移动过插件目录 → 客户端模块缓存按 specifier 缓存，重启才清 |

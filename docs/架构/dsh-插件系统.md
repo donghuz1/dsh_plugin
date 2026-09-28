@@ -228,11 +228,14 @@ WebSocket 走另一条头改写钩子，只为归属窗口附 origin/cookie。
 
 `plugin_manager`（agent 工具 + Web 侧栏，同一服务）每个 action 都需要 `danger-full-access` 或单次审批。
 
-| action | 改什么 |
-| --- | --- |
-| `set_plugin` | `cordis.patch.yml` 里该行的 `disabled`（保留注释与排版） |
-| `set_bundle` | `package.json` 的 `dsh.profile.bundles`（启用=追加末尾，禁用=移除） |
-| `install_bundle` / `remove_bundle` | 跑 pnpm + 调 `reconcile` 维护 bundle 列表 |
+| action | `target` 是什么 | 改什么 |
+| --- | --- | --- |
+| `list_plugins` / `list_bundles` | — | 只读；`list_plugins` 每行给出 `enabled` 与 `fiberPhase` |
+| `set_plugin` | **`entryId`**，形如 `include:<行id>` | `cordis.patch.yml` 里该行的 `disabled`（保留注释与排版） |
+| `set_bundle` | bundle 包名 | `package.json` 的 `dsh.profile.bundles`（启用=追加末尾，禁用=移除） |
+| `install_bundle` / `remove_bundle` | bundle 包名或安装 spec | 跑 pnpm + 调 `reconcile` 维护 bundle 列表 |
+
+`set_plugin` 的 target 是 **`entryId`（`include:<行id>`）而不是行 id**。传行 id 会得到 `unknown-plugin`——源码按 `item.entryId === id` 精确匹配（`plugin-manager/src/index.ts:305`）。
 
 `readOnlyReason: management-required` 有两义：插件行是受保护模块（17 个自保护包，含 plugin-manager 自己）；或 bundle 的某个行是受保护的（则不可关闭）。
 
@@ -274,7 +277,56 @@ WebSocket 走另一条头改写钩子，只为归属窗口附 origin/cookie。
 
 错了不会报错，只会静默不生效——用契约测试断言它。
 
-## 十二、症状 → 原因
+## 十二、四层诊断：插件生效了吗
+
+「生效」是四件不同的事。混在一起查会卡住；分开查，每层都有明确判据。
+
+| 层 | 问题 | 判据 | 不通过的含义 |
+| --- | --- | --- | --- |
+| 1 | **装上了吗** | `list_plugins` 里有没有你的行 | 没有 → 安装没成功，或 `dsh.bundle.patch` 路径不对 |
+| 2 | **加载了吗**（`apply` 跑过没） | 该行的 `fiberPhase` | 见下表 |
+| 3 | **注册的东西进去了吗** | 按插件类型不同，见下 | 插件是好的，但你注册的东西没被采纳 |
+| 4 | **行为符合预期吗** | 肉眼看 / 问模型 | 前三层都对，问题在使用侧 |
+
+### 第 2 层：`fiberPhase` 是权威判据
+
+```
+plugin_manager action=list_plugins  →  找你那行的 fiberPhase
+```
+
+| `fiberPhase` | 含义 | 下一步 |
+| --- | --- | --- |
+| `active` | 加载成功，`apply` 已执行 | 往下查第 3、4 层 |
+| `pending` | 缺依赖服务，`apply` **没执行** | 检查 `inject` 里列的服务是否真的存在——这条不报错 |
+| `loading` | 正在执行 `apply` | 卡住说明 `apply` 里有 await 没返回 |
+| `failed` | `apply` 抛错，或 `Config` 校验失败 | 是少数会响的错误 |
+| `null` | 没有活 fiber | 该行被禁用（`enabled: false`），或模块根本没解析成功 |
+
+真实观测样本：
+
+```json
+{"entryId":"include:qoder-theme","moduleName":"@local/dsh-qoder-theme","enabled":true,"fiberPhase":"active"}
+{"entryId":"include:ui-schedule","enabled":false,"fiberPhase":null}
+```
+
+GUI 里也能看：**设置 → 插件 → 插件列表**。
+
+### 第 3 层：按插件类型验证注册结果
+
+| 插件类型 | 判据 |
+| --- | --- |
+| **客户端插件** | `curl -N --max-time 3 -s http://127.0.0.1:19387/plugins/events`，boot graph 的 `entries` 里应有它，且 `url` 请求得到 200 与逐字节一致的产物 |
+| **工具插件** | `cordis_inspect_query` platform=host provider=Tool method=listTools，应出现你的工具名 |
+| **服务插件** | `cordis_inspect_query` platform=host provider=Service method=listService，应出现你的服务键 |
+| **事件 / 提示词 / 主题令牌** | 没有通用探测点，只能靠第 4 层 |
+
+### 关键判断
+
+**第 2 层 `active` 但第 4 层没反应，问题一定不在「插件没生效」，而在「你注册的东西没被用到」。**
+
+这两类问题原因完全不同：前者查 `inject` / 模块解析 / 包结构，后者查事件名、slot key、令牌名有没有写错（都不报错）。先分清是哪一类，能省掉大量时间。
+
+## 十三、症状 → 原因
 
 DSH 里绝大多数错误是静默的，这张表按"你看到什么"倒查。
 
