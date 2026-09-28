@@ -9,7 +9,7 @@
 - [x] 写 `AGENTS.md`：目录结构、硬规则、门禁、新增插件步骤
 - [x] 实测 AGENTS.md 里的每条校验命令可执行
 - [x] 重新安装到 profile（`link:` 路径变更）
-- [ ] **重启 DSH Desktop**，使运行中的 Host 重建客户端模块缓存
+- [x] **重启 DSH Desktop**，使运行中的 Host 重建客户端模块缓存（已由 `list_plugins` 判据确认：`include:qoder-theme` 为 `fiberPhase: active`）
 
 ### 重构中发现并修掉的三个问题
 

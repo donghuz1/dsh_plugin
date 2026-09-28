@@ -252,11 +252,14 @@ WebSocket 走另一条头改写钩子，只为归属窗口附 origin/cookie。
 
 **替换已安装的包需要重启**（`plugin-manager` 源码分支：同名包已存在即返回 `restart-required` 并跳过 reload）。新装 bundle 可以热应用。
 
-## 十、给插件作者的三条硬约束
+**Host 半区的 JS 不在监控范围内**：HMR 只轮询每个图行的 `client.js`，改 `index.js` 不触发任何重载；重装同名包、切换启停也不重建模块代。Host 逻辑改完必须重启进程才生效——客户端插件能热更，Host 插件不能。
+
+## 十、给插件作者的四条硬约束
 
 1. **函数插件绝不加 `export default`**；服务插件用 `export default class`。混用静默丢元数据。
 2. **可选服务一律 `ctx.get(name)`**；`ctx.<name>` 只用于已声明的 `inject`。
 3. **令牌名之类的字符串标识不会被运行时校验**——写错只静默失效。用测试对照权威源逐个校验（本仓库的 `test/contract.test.mjs` 就是这么做的）。
+4. **`apply` 里的回填/补跑必须幂等**——它每次插件加载都会执行。只处理「还没有本插件产物」的对象，并显式识别自己的产物（如标题的 `source.kind === 'provider' && source.provider === <自己的 id>`）。认不出自己的产物，就会在每次启动时重复付出代价，还会覆盖或漂移既有结果。
 
 ## 十一、四个身份字符串
 
@@ -409,4 +412,5 @@ $NODE -e "require.resolve('@deepseek-ai/dsh-llm',{paths:['<插件目录>']})"   
 测试脚本里拼 profile 路径要用 `DSH_PROFILE_DIR`；拿 `DSH_PROFILE` 当路径会得到一个不存在的相对目录，`existsSync` 静默返回 false，用例悄悄跳过。
 
 <!-- 更新记录：2026-09-28, 新增「纯 Host 插件」一节（半区声明、依赖边界、权威源、环境变量）, §十四 -->
+<!-- 更新记录：2026-09-28, HMR 节补充 Host 半区不热重载；硬约束增补「回填必须幂等」, §九 · §十 -->
 
