@@ -1,0 +1,25 @@
+{
+  "name": "@local/dsh-session-title-rule",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "把 DSH 会话标题统一成 MMDD｜类型｜主题",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test 'test/*.test.mjs'"
+  }
+}

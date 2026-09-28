@@ -1,0 +1,10 @@
+# 本插件对 profile 的 patch 层：禁用内置标题 provider，再插入本插件行。
+#
+# 为什么要禁用：sessionTitle 服务全局只接受一个 provider，重复注册会直接抛错
+# （session-title/src/index.ts:473-475）。不禁用内置的首条消息 provider，
+# 本插件的 register() 就会把整个 fiber 打失败。
+- id: session-title-llm
+  disabled: true
+- insert:
+    - id: session-title-rule
+      name: '@local/dsh-session-title-rule'
