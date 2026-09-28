@@ -318,7 +318,7 @@ GUI 里也能看：**设置 → 插件 → 插件列表**。
 | **客户端插件** | `curl -N --max-time 3 -s http://127.0.0.1:19387/plugins/events`，boot graph 的 `entries` 里应有它，且 `url` 请求得到 200 与逐字节一致的产物 |
 | **工具插件** | `cordis_inspect_query` platform=host provider=Tool method=listTools，应出现你的工具名 |
 | **服务插件** | `cordis_inspect_query` platform=host provider=Service method=listService，应出现你的服务键 |
-| **事件 / 提示词 / 主题令牌** | 没有通用探测点，只能靠第 4 层 |
+| **事件 / 提示词 / 主题令牌 / provider 注册** | 没有通用探测点，只能靠第 4 层；单例槽位类注册另有信号——槽位被占时注册抛错，该行 `fiberPhase` 会是 `failed` |
 
 ### 关键判断
 
@@ -350,3 +350,63 @@ DSH 里绝大多数错误是静默的，这张表按"你看到什么"倒查。
 2. **看 boot graph**：`curl -N --max-time 3 -s http://127.0.0.1:19387/plugins/events`（client-hmr 的 SSE，无需鉴权）。确认你的插件在不在、`inject`/`immediately` 对不对。
 3. **看产物是否可取**：用 graph 里公布的 `url` 原样请求，与本地产物逐字节比对。
 4. **查 API 而不是猜**：`cordis_inspect_list` → `cordis_inspect_query` 读 Service / Event / Config / Slots / Theme 的确切契约。
+
+## 十四、纯 Host 插件
+
+本仓库第一个无浏览器半区的插件是 `plugins/session-title-rule/`（注册会话标题 provider）。它的形态与 client 插件不同。
+
+### 声明
+
+`package.json` 只需 `dsh.bundle.patch`；`exports["."]` 指向 Host 入口，不写 `dsh.client`：
+
+```json
+{
+  "exports": { ".": "./index.js" },
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
+```
+
+patch 层可以 disable 别的行——这是接管**单例槽位**类服务的唯一途径（例如 `sessionTitle` 全局只接受一个 provider，已注册再注册直接抛错）：
+
+```yaml
+- id: session-title-llm     # 目标行的 id（不是包名）
+  disabled: true
+- insert:
+    - id: <插件名>
+      name: '@local/dsh-<插件名>'
+```
+
+### 依赖边界：插件目录解析不到内置包
+
+插件被 `link:` 进 profile 后，Node 从**插件真实路径**解析模块，够不到 profile 的 `node_modules`：
+
+```bash
+$NODE -e "require.resolve('@deepseek-ai/dsh-llm',{paths:['<插件目录>']})"   # MODULE_NOT_FOUND
+```
+
+所以 Host 插件**零 import**：全部通过 `ctx` 服务交互（`ctx.llm.stream()`、`ctx.sessionTitle.register()`…）。代价是类型没了，形状假设要靠 `test/contract.test.mjs` 对照权威源钉死。
+
+`ctx.effect(fn, label)` 里 `fn` 的返回值才是本插件的 disposer——别的服务（如 `sessionTitle.register()`）返回的 disposer 挂在它自己的 fiber 上，必须显式收进自己的 effect，否则插件停用后注册项仍占着槽位。
+
+### 权威源：运行中的 DSH 优先于源码 checkout
+
+`cordis_inspect_query` 读的是**运行进程**的契约；`DSH_SOURCE` 指向的 checkout 可能落后或领先于它。实测差异：运行时契约有 `GenerateOptions.messages: RequestMessage[]`（含 `RequestUserInput`），源码 checkout 只有 `Message[]`。
+
+推论：
+
+- 写代码时**取两版都接受的形状**（如完整 `Message`，而不是只在某一版存在的 `RequestUserInput`）。
+- 契约测试锚定源码 checkout 有盲区；源码不在时相关用例跳过即可，别把它当成运行版本的证据。
+
+### 环境变量：`DSH_PROFILE` 不是路径
+
+| 变量 | 内容 |
+| --- | --- |
+| `DSH_PROFILE` | profile **名**（如 `desktop`），不是目录 |
+| `DSH_PROFILE_DIR` | profile 目录的绝对路径 |
+| `DSH_HOME` | `~/.dsh` |
+| `DSH_SESSION_ID` | 当前会话 id |
+
+测试脚本里拼 profile 路径要用 `DSH_PROFILE_DIR`；拿 `DSH_PROFILE` 当路径会得到一个不存在的相对目录，`existsSync` 静默返回 false，用例悄悄跳过。
+
+<!-- 更新记录：2026-09-28, 新增「纯 Host 插件」一节（半区声明、依赖边界、权威源、环境变量）, §十四 -->
+

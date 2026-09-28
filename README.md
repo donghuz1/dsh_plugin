@@ -14,6 +14,7 @@ DSH 官方文档的中文快照在 [docs/参考/dsh-官方文档](docs/参考/ds
 | 插件 | 包名 | 作用 |
 | --- | --- | --- |
 | [qoder-theme](plugins/qoder-theme/README.md) | `@local/dsh-qoder-theme` | 把桌面端 UI 观感调成 [Qoder](https://qoder.com/zh)（Quest 暗色为基准）的主题皮肤，79 个设计令牌 |
+| [session-title-rule](plugins/session-title-rule/README.md) | `@local/dsh-session-title-rule` | 会话标题统一成 `MMDD｜类型｜主题`：上海日期 + 八类判定 + 主题提炼，接管内置标题 provider |
 
 ## 目录
 
