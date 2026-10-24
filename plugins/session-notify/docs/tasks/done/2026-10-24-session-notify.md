@@ -78,7 +78,7 @@ plugins/session-notify/
 - [x] 契约测试覆盖：`uiSession.sessionStatus`、`pendingInteraction.kind==='approval'` 与字段、`running`/`completionUnread`、`sessions.list.byId` 标题形状、`uiSession.adapter.current`、`uiWorkspace.openSession`、locale `register/bind`、三处命名、`client.js` 与源同步。
 - [ ] 单插件门禁与全仓门禁全绿。
 - [x] `plugin_manager install_bundle` 后 `application: applied`，boot graph 出现 `@local/dsh-session-notify`。
-- [ ] 真实审批/完成通知需用户现场确认（代理无法可靠自测；见风险）。
+- [x] 真实审批/完成通知经用户现场确认可用。
 
 ## 风险与限制
 
@@ -108,11 +108,11 @@ plugins/session-notify/
 | boot graph | `curl -sN http://127.0.0.1:52828/plugins/events` | 出现 `@local/dsh-session-notify`，四个 inject 边与 `immediately: true` 正确 |
 | 产物投递 | 按 graph 的 `rev` 请求 combo URL | 与本地 `client.js` 逐字节一致（服务端仅追加 sourceMappingURL） |
 | 全仓门禁 | `for d in plugins/*/` | `qoder-theme`、本插件通过；`session-title-rule` 的既有契约用例失败 |
-| 真实通知 | 需要审批或会话完成事件 | 待用户现场确认 |
+| 真实通知 | 用户现场触发审批/完成 | 用户确认可用（弹窗与点击跳回） |
 
 ### 遗留
 
 - 全仓门禁的 `session-title-rule` 失败是 worktree 基线（`develop@b25b7f0`）缺少主工作树里未提交的修复，与本插件无关；合并前需先落地那份改动。
 - profile 的 `link:` 指向 worktree；**合并后必须从主工作树重新安装并重启**，否则客户端模块缓存仍指向旧路径。
-- 代理无法控制 Desktop 渲染页面，也无法在本会话触发审批（Full access，审批关闭）；审批提醒、完成提醒的实际弹窗与点击跳转需用户观察确认。若当前页面未热加载新插件，刷新一次即可。
+- 代理无法控制 Desktop 渲染页面；实际弹窗与点击跳回已由用户现场确认。若后续页面未热加载新插件，刷新一次即可。
 - 完成提醒按 `running true→false` 触发，失败/中止也会提醒；如噪音过大，后续再加过滤配置。
