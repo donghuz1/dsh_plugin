@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Session notifications">
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="#1f2937"/>
+  <path d="M128 52c-30 0-54 24-54 54v30l-14 24c-3 5 1 12 7 12h122c6 0 10-7 7-12l-14-24v-30c0-30-24-54-54-54z" fill="#f9fafb"/>
+  <path d="M104 190c4 12 13 18 24 18s20-6 24-18z" fill="#f9fafb"/>
+  <circle cx="184" cy="76" r="30" fill="#f59e0b"/>
+  <path d="M184 60v20" stroke="#1f2937" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="184" cy="93" r="5" fill="#1f2937"/>
+</svg>
