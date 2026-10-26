@@ -2,14 +2,18 @@
  * 生成物 —— 由 `node build.mjs` 从 src/client.js 产出，请勿手改。
  */
 /**
- * 会话提醒：审批 pending 与会话完成时弹桌面系统通知。
+ * 会话提醒：任何等待用户处理的 pending interaction 与一轮结束时弹桌面系统通知。
  *
  * 生成物 —— 由 `node build.mjs` 从 src/client.js 产出，请勿手改。
  *
  * 为什么订阅 `uiSession.sessionStatus` 而不是 `remote.$on('approval/request')`：
  * `approval/request` 是 waterfall，`ui-approval` 的监听器会接管请求并等待用户
  * 作答（不调用 `next()`），后注册的观察者永远收不到。`sessionStatus` 是
- * `ui-approval` 发布 pending 之后的会话状态投影，覆盖所有会话。
+ * `ui-approval` / `ui-user-questions` 发布 pending 之后的会话状态投影，覆盖
+ * 审批、提问、计划确认以及未来域新增的 pending kind；未知 kind 用通用文案。
+ *
+ * 完成提醒只说「本轮已结束」：`sessionStatus` 只有 running 布尔，不暴露
+ * `turn/end.reason`，无法在不引入会话事件流的前提下区分成功、失败与中止。
  */
 window.__ModuleLoader__.load({
   id: '@local/dsh-session-notify',
@@ -20,8 +24,15 @@ window.__ModuleLoader__.load({
     const zh = {
       approvalTitle: '需要审批',
       approvalBody: '工具 {tool} 正在等待审批。',
-      completionTitle: '会话已完成',
-      completionBody: '{session} 已结束，点击查看。',
+      questionTitle: '需要你的回答',
+      questionBody: '{question}',
+      questionMore: '另有 {count} 个问题。',
+      planReviewTitle: '计划等待确认',
+      planReviewBody: '计划已提交，等待你确认。',
+      interactionTitle: '需要你的操作',
+      interactionBody: '会话中有一步操作在等你处理。',
+      completionTitle: '本轮已结束',
+      completionBody: '{session} 的这一轮已结束，点击查看。',
       reasonLine: '原因：{reason}',
       sessionLine: '会话：{title}',
       sessionFallback: '会话 {id}',
@@ -30,8 +41,15 @@ window.__ModuleLoader__.load({
     const en = {
       approvalTitle: 'Approval needed',
       approvalBody: '{tool} is waiting for approval.',
-      completionTitle: 'Session finished',
-      completionBody: '{session} finished. Click to open.',
+      questionTitle: 'Your input is needed',
+      questionBody: '{question}',
+      questionMore: '{count} more questions.',
+      planReviewTitle: 'Plan awaiting approval',
+      planReviewBody: 'A plan is ready for your confirmation.',
+      interactionTitle: 'Action needed',
+      interactionBody: 'A step in this session is waiting for you.',
+      completionTitle: 'Turn finished',
+      completionBody: '{session} finished this turn. Click to open.',
       reasonLine: 'Reason: {reason}',
       sessionLine: 'Session: {title}',
       sessionFallback: 'Session {id}',
@@ -61,6 +79,15 @@ window.__ModuleLoader__.load({
         : t('sessionLine', { title })
     }
 
+    /** 取第一个问题的正文；形状不合法时返回 undefined，交给通用文案。 */
+    function firstQuestion(pending) {
+      if (!Array.isArray(pending.questions)) return undefined
+      const question = pending.questions[0]
+      if (question === null || typeof question !== 'object') return undefined
+      const text = typeof question.question === 'string' ? question.question.trim() : ''
+      return text === '' ? undefined : truncate(text, MAX_REASON)
+    }
+
     /** 根会话才发完成通知；subagent 子会话的结束不是一次用户可感知的完成。 */
     function isRootSession(sessions, sessionId) {
       const row = sessions.list.getSnapshot().byId[sessionId]
@@ -68,7 +95,7 @@ window.__ModuleLoader__.load({
       return row.origin !== 'subagent' && row.parentSessionId === undefined
     }
 
-    /** 当前页是否正在看这个会话；是则不需要再弹完成通知。 */
+    /** 当前页是否正在看这个会话；是则 pending 与完成都不需要再弹。 */
     function isWatching(uiSession, sessionId) {
       const adapter = uiSession.adapter
       const current = adapter === undefined ? undefined : adapter.current
@@ -93,7 +120,7 @@ window.__ModuleLoader__.load({
         let disposed = false
         let initialized = false
         let permission
-        const seenApprovals = new Set()
+        const seenInteractions = new Set()
         const lastRunning = new Map()
         const sessions = ctx.sessions
         const uiSession = ctx.uiSession
@@ -152,14 +179,36 @@ window.__ModuleLoader__.load({
           }, () => {})
         }
 
-        function notifyApproval(sessionId, pending) {
-          const parts = [
-            t('approvalBody', { tool: pending.toolName }),
-            sessionLabel(sessions, t, sessionId),
-          ]
-          const reason = typeof pending.reason === 'string' ? pending.reason.trim() : ''
-          if (reason !== '') parts.push(t('reasonLine', { reason: truncate(reason, MAX_REASON) }))
-          show(t('approvalTitle'), parts.join('\n'), sessionId)
+        /**
+         * 按 pending.kind 选文案；未知 kind 用通用文案，避免未来域新增的
+         * 等待态被静默漏掉。审批正文仍带工具名与 reason，提问带首个问题，
+         * 计划确认只提示「等待确认」，不把整段计划塞进通知。
+         */
+        function notifyInteraction(sessionId, pending) {
+          let title
+          const parts = []
+          if (pending.kind === 'approval') {
+            title = t('approvalTitle')
+            const tool = typeof pending.toolName === 'string' && pending.toolName !== '' ? pending.toolName : undefined
+            // toolName 在契约里必填；形状异常时退回通用文案，不拼出半句话。
+            parts.push(tool === undefined ? t('interactionBody') : t('approvalBody', { tool }))
+            const reason = typeof pending.reason === 'string' ? pending.reason.trim() : ''
+            if (reason !== '') parts.push(t('reasonLine', { reason: truncate(reason, MAX_REASON) }))
+          } else if (pending.kind === 'question') {
+            title = t('questionTitle')
+            const question = firstQuestion(pending)
+            parts.push(question === undefined ? t('interactionBody') : t('questionBody', { question }))
+            const count = Array.isArray(pending.questions) ? pending.questions.length : 0
+            if (count > 1) parts.push(t('questionMore', { count: count - 1 }))
+          } else if (pending.kind === 'plan-review') {
+            title = t('planReviewTitle')
+            parts.push(t('planReviewBody'))
+          } else {
+            title = t('interactionTitle')
+            parts.push(t('interactionBody'))
+          }
+          parts.push(sessionLabel(sessions, t, sessionId))
+          show(title, parts.join('\n'), sessionId)
         }
 
         function notifyCompletion(sessionId) {
@@ -173,9 +222,12 @@ window.__ModuleLoader__.load({
           const snapshot = uiSession.sessionStatus.getSnapshot()
           snapshot.forEach((status, sessionId) => {
             const pending = status.pendingInteraction
-            if (pending === undefined || pending.kind !== 'approval' || seenApprovals.has(pending.key)) return
-            seenApprovals.add(pending.key)
-            notifyApproval(sessionId, pending)
+            if (pending === undefined || seenInteractions.has(pending.key)) return
+            // 先记为已见再判断是否在看：你正盯着这张卡片时不该弹系统通知，
+            // 之后切走也不该补弹一条已经看过的提醒。
+            seenInteractions.add(pending.key)
+            if (isWatching(uiSession, sessionId)) return
+            notifyInteraction(sessionId, pending)
           })
           snapshot.forEach((status, sessionId) => {
             const previous = lastRunning.get(sessionId)

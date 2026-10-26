@@ -11,7 +11,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { apply } from '../index.js'
-import { userPrompt } from '../src/prompt.js'
+import { MAX_INPUT_BYTES, userPrompt } from '../src/prompt.js'
 
 /** 把 chunk 数组包成 llm.stream 需要的异步可迭代对象。 */
 async function* streamOf(chunks) {
@@ -143,6 +143,27 @@ test('生成成功时返回规则标题、来源 seq 与实际使用的模型路
   assert.equal(result.title, '0928｜功能｜新增会话标题插件')
   assert.deepEqual(result.messageSeqs, [1])
   assert.deepEqual(result.model, { provider: 'deepseek-official', model: 'deepseek-flash' })
+})
+
+test('输入超预算时 messageSeqs 只报实际进入 prompt 的消息', async () => {
+  const { ctx, state } = makeCtx({
+    chunks: [
+      { type: 'text-delta', text: '功能｜测试' },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ],
+  })
+  apply(ctx)
+  const result = await state.provider.generate(request({
+    messages: [
+      { seq: 1, text: '第一条' },
+      { seq: 2, text: 'x'.repeat(10000) },
+    ],
+  }))
+
+  assert.deepEqual(result.messageSeqs, [1])
+  const prompt = state.streamOptions[0].messages[0].content[0].text
+  assert.ok(Buffer.byteLength(prompt, 'utf8') <= MAX_INPUT_BYTES)
+  assert.ok(!prompt.includes('x'.repeat(100)), '超出预算的消息不得进入 prompt')
 })
 
 test('模型调用带上辅助调用标记、会话 id 与取消信号', async () => {

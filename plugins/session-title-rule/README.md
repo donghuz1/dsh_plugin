@@ -52,6 +52,7 @@
 - **辅助调用显式选最低推理档**：`llm.resolveModelInfo()` 取 `reasoning.efforts[0]`，再经 `llm.prepareCall()` 发起请求。省略 `reasoningEffort` 时适配器会落到连接默认值（可能是 high/max），推理 token 会先吃光 64 token 的输出上限，流以 `finish: max-tokens` 结束且没有文本，provider 只能抛错、标题保留 fallback。查询失败或模型不暴露推理能力时不传该字段，交给适配器默认值。
 - **辅助消息用无身份的 `RequestUserInput`**（`{ role: 'user', content }`）：该请求不落会话日志，不需要伪造 `Message` id 与 source kind。`prepareCall` 返回的 `prepared.config` 已补齐默认值，`prepared.stream()` 要求传入的 call-config 字段与它逐字段一致。
 - 标题字节上限 80（profile 里 `session-title` 行的 `maxTitleBytes`），超出会被服务**静默截断**，所以主题先裁到预算内。
+- **输入有 4096 字节预算**，与内置 provider 的 `maxInputBytes` 对齐。全部消息放得下时保持全量输入；首条就超预算时裁成预算内的 UTF-8 前缀；后续消息放不下时停在消息边界。单条首消息实测可达 71KB，现在不会再整条发给标题模型。
 - **补跑是幂等的**：每次插件加载都会执行，但只处理还没有规则标题的会话——无标题、DSH 落的 `fallback`、以及别的 provider 命名的（如内置 provider 的英文标题）才重跑；**本插件命名的**与用户改名的都跳过。省略后一条判定就会在每次启动时对所有活跃会话白跑一遍模型，标题还会随模型输出漂移。
 
 ## 安装
@@ -94,3 +95,4 @@ $NODE --test 'test/*.test.mjs'  # 纯单元 + 契约
 - **契约测试锚定 DSH 源码 checkout**（`DSH_SOURCE`，默认 `../deepseek-harness`），而运行中的 DSH 可能比它更新。源码不在时相关用例显式跳过。端到端行为仍以装进 profile 后的实际效果为准；本插件只用两边都存在的 API（`resolveModelInfo` / `prepareCall` / `RequestUserInput`）。
 - `MMDD` 只表达月日，不含年份——与规则书一致。
 - 主题长度上限（20 汉字）与字节预算（80）在 `src/rule.js`、`index.js` 里是常量；若把 profile 的 `maxTitleBytes` 调小，需同步调小，否则标题会被服务静默截断（契约测试会先拦下来）。
+- 输入预算按「从最早的消息开始装满」分配：极长会话只把前段放进标题调用，结尾上下文不参与判定，主题可能偏早期。

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Session Notifications",
-    "description": "Desktop notifications for approval requests and finished sessions."
+    "description": "Desktop notifications for approvals, questions, plan reviews, and finished turns."
   }
 }

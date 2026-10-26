@@ -160,7 +160,11 @@ test('插件导出形状：name / inject / 只在 apply 里注册', async () => 
   assert.deepEqual([...h.plugin.inject], ['uiSession', 'sessions', 'locale'])
   const dict = h.localeRegistrations.find(entry => entry.ns === 'sessionNotify')
   assert.ok(dict, '必须注册 sessionNotify 字典')
-  for (const key of ['approvalTitle', 'approvalBody', 'completionTitle', 'completionBody', 'reasonLine', 'sessionLine', 'sessionFallback']) {
+  for (const key of [
+    'approvalTitle', 'approvalBody', 'questionTitle', 'questionBody', 'questionMore',
+    'planReviewTitle', 'planReviewBody', 'interactionTitle', 'interactionBody',
+    'completionTitle', 'completionBody', 'reasonLine', 'sessionLine', 'sessionFallback',
+  ]) {
     assert.ok(dict.value.zh[key], `中文缺 ${key}`)
     assert.ok(dict.value.en[key], `英文缺 ${key}`)
   }
@@ -187,11 +191,76 @@ test('审批：每个 key 只弹一次，正文含工具、会话标题与原因
   assert.equal(h.notifications.instances.length, 2, '新审批必须再次提醒')
 })
 
-test('审批：非 approval 的 pending 不弹', async () => {
-  const h = await harness({ rows: { s1: { title: '计划' } } })
-  h.publish(statusMap({ s1: { running: false, pendingInteraction: { kind: 'plan-review', key: 'plan:1' } } }))
+test('提问：question pending 也弹，正文含首个问题与会话标题', async () => {
+  const h = await harness({ rows: { s1: { title: '登录方案' } }, currentSession: 's2' })
+  const pending = {
+    kind: 'question',
+    key: 'question:1',
+    questions: [{ id: 'q1', question: '选 A 还是 B？' }, { id: 'q2', question: '要不要保留旧接口？' }],
+  }
+  h.publish(statusMap({ s1: { running: false, pendingInteraction: pending } }))
   await flush()
-  assert.equal(h.notifications.instances.length, 0)
+  assert.equal(h.notifications.instances.length, 1)
+  assert.equal(h.notifications.instances[0].title, '需要你的回答')
+  assert.match(h.notifications.instances[0].body, /选 A 还是 B？/)
+  assert.match(h.notifications.instances[0].body, /另有 1 个问题/)
+  assert.match(h.notifications.instances[0].body, /登录方案/)
+
+  h.publish(statusMap({ s1: { running: false, pendingInteraction: { ...pending } } }))
+  await flush()
+  assert.equal(h.notifications.instances.length, 1, '同一个 key 不得重复提醒')
+})
+
+test('计划确认：plan-review pending 也弹', async () => {
+  const h = await harness({ rows: { s1: { title: '重构计划' } }, currentSession: 's2' })
+  const pending = {
+    kind: 'plan-review',
+    key: 'question:2',
+    questions: [{ id: 'q', question: '批准这份计划吗？', detail: '# 计划' }],
+  }
+  h.publish(statusMap({ s1: { running: false, pendingInteraction: pending } }))
+  await flush()
+  assert.equal(h.notifications.instances.length, 1)
+  assert.equal(h.notifications.instances[0].title, '计划等待确认')
+  assert.match(h.notifications.instances[0].body, /重构计划/)
+})
+
+test('未知 pending kind 用通用文案提醒，不漏', async () => {
+  const h = await harness({ rows: { s1: { title: '任务' } }, currentSession: 's2' })
+  h.publish(statusMap({ s1: { running: false, pendingInteraction: { kind: 'team-task', key: 'team:1' } } }))
+  await flush()
+  assert.equal(h.notifications.instances.length, 1)
+  assert.equal(h.notifications.instances[0].title, '需要你的操作')
+})
+
+test('pending：当前会话可见且聚焦时不弹，隐藏/失焦时照常弹', async () => {
+  const focused = await harness({
+    rows: { s1: { title: '当前会话' } },
+    currentSession: 's1',
+    document: { visibilityState: 'visible', hasFocus: () => true },
+  })
+  focused.publish(statusMap({
+    s1: { running: false, pendingInteraction: { kind: 'question', key: 'question:1', questions: [{ question: '继续吗？' }] } },
+  }))
+  await flush()
+  assert.equal(focused.notifications.instances.length, 0, '提问：看着当前会话时不弹')
+
+  focused.publish(statusMap({
+    s1: { running: false, pendingInteraction: { kind: 'approval', key: 'approval:9', toolName: 'bash' } },
+  }))
+  await flush()
+  assert.equal(focused.notifications.instances.length, 0, '审批：看着当前会话时也不弹')
+
+  const hidden = await harness({
+    rows: { s1: { title: '当前会话' } },
+    currentSession: 's1',
+    document: { visibilityState: 'hidden', hasFocus: () => true },
+  })
+  hidden.publish(statusMap({
+    s1: { running: false, pendingInteraction: { kind: 'approval', key: 'approval:1', toolName: 'bash' } },
+  }))
+  await flush()
+  assert.equal(hidden.notifications.instances.length, 1)
 })
 
 test('审批：reason 截断到 200 码点', async () => {
@@ -209,7 +278,7 @@ test('审批：标题缺失时回落到短 session id', async () => {
   assert.match(h.notifications.instances[0].body, /会话 abcdefgh/)
 })
 
-test('完成：根会话 running true→false 弹一次', async () => {
+test('一轮结束：根会话 running true→false 弹一次', async () => {
   const h = await harness({ rows: { s1: { title: '长任务' } }, currentSession: 's2' })
   h.publish(statusMap({ s1: { running: true } }))
   await flush()
@@ -218,7 +287,7 @@ test('完成：根会话 running true→false 弹一次', async () => {
   h.publish(statusMap({ s1: { running: false } }))
   await flush()
   assert.equal(h.notifications.instances.length, 1)
-  assert.equal(h.notifications.instances[0].title, '会话已完成')
+  assert.equal(h.notifications.instances[0].title, '本轮已结束')
   assert.match(h.notifications.instances[0].body, /长任务/)
 
   h.publish(statusMap({ s1: { running: false } }))

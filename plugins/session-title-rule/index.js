@@ -18,7 +18,7 @@ import {
   projectName,
   shanghaiMMDD,
 } from './src/rule.js'
-import { systemPrompt, userPrompt } from './src/prompt.js'
+import { selectMessages, systemPrompt, userPrompt } from './src/prompt.js'
 
 /** 插件导出的 name，只用于 fiber 诊断；行 id 与包名由 package.json 决定。 */
 export const name = 'session-title-rule'
@@ -80,12 +80,16 @@ async function generateTitle(ctx, request) {
   const mmdd = shanghaiMMDD(header.createdAt)
   if (mmdd === undefined) throw new Error('会话创建时间不可用，保留原名')
 
+  // 输入有 4096 字节预算；messageSeqs 只报实际进入 prompt 的消息。
+  const selected = selectMessages(messages)
+  if (selected.length === 0) throw new Error('消息超出输入预算且无法裁出可用前缀，保留原名')
+
   const text = await callModel(ctx, request, {
     system: systemPrompt({
       maxTopicChars: MAX_TOPIC_CHARS,
       project: projectName(header.cwd),
     }),
-    user: userPrompt({ messages }),
+    user: userPrompt({ messages: selected }),
   })
 
   const parsed = parseModelOutput(text)
@@ -95,7 +99,7 @@ async function generateTitle(ctx, request) {
   const title = buildTitle(mmdd, parsed.type, parsed.topic)
   if (title === undefined) throw new Error('主题被裁空，保留原名')
 
-  return { title, messageSeqs: messages.map(message => message.seq), model: route }
+  return { title, messageSeqs: selected.map(message => message.seq), model: route }
 }
 
 /**

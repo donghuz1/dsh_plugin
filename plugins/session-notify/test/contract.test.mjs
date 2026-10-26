@@ -26,6 +26,8 @@ const SOURCES = {
   uiSession: 'packages/client/ui-session/src/client/index.ts',
   uiApprovalContract: 'packages/client/ui-approval/src/client/contract/slots.ts',
   uiApproval: 'packages/client/ui-approval/src/client/index.ts',
+  uiQuestionsContract: 'packages/client/ui-user-questions/src/client/contract/slots.ts',
+  uiQuestions: 'packages/client/ui-user-questions/src/client/index.ts',
   uiWorkspace: 'packages/client/ui-workspace/src/client/navigation.ts',
   locale: 'packages/client/locale/src/client/index.ts',
   sessionLineage: 'packages/api/session-controller/src/client/sessions/lineage.ts',
@@ -120,6 +122,21 @@ test('契约：ui-approval 会接管 approval/request 并发布 pending', async 
   if (text === undefined) return
   assert.match(text, /registerPendingInteraction<PendingApproval>/)
   assert.match(text, /ctx\.remote\.\$on\('approval\/request'/)
+})
+
+test('契约：question / plan-review 的 pending 形状是 kind/key/questions', async (t) => {
+  const text = await source(t, 'uiQuestionsContract')
+  if (text === undefined) return
+  assert.match(text, /readonly kind: 'question' \| 'plan-review'/)
+  assert.match(text, /readonly key: string/)
+  assert.match(text, /readonly questions: readonly AskUserQuestionItem\[\]/)
+})
+
+test('契约：ui-user-questions 会接管 user-questions/request 并发布 pending', async (t) => {
+  const text = await source(t, 'uiQuestions')
+  if (text === undefined) return
+  assert.match(text, /registerPendingInteraction<PendingQuestion>/)
+  assert.match(text, /ctx\.remote\.\$on\('user-questions\/request'/)
 })
 
 test('契约：uiWorkspace.openSession 存在', async (t) => {
