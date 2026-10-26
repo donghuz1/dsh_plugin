@@ -6,7 +6,21 @@
  * 「类型｜主题」，日期前缀由 rule.js 组装。
  */
 
-import { SEPARATOR, TITLE_TYPES } from './rule.js'
+import { SEPARATOR, TITLE_TYPES, truncateUtf8, utf8Bytes } from './rule.js'
+
+/**
+ * user prompt 的 UTF-8 字节上限，与内置标题 provider 的 `maxInputBytes: 4096`
+ * 对齐。超过这个预算的请求既可能拖慢标题生成，也会把长会话整段历史发给模型。
+ */
+export const MAX_INPUT_BYTES = 4096
+
+/** user prompt 的固定前缀；字节预算包含它。 */
+const USER_PROMPT_PREFIX = '从下面这个 JSON 数组里的用户消息生成会话标题：\n'
+
+/** 把选中的消息序列化成 user prompt；帧格式只在这里定义。 */
+function frame(messages) {
+  return `${USER_PROMPT_PREFIX}${JSON.stringify(messages)}`
+}
 
 /**
  * 八类判定规则，与规则书逐字对应。
@@ -50,13 +64,54 @@ export function systemPrompt(options) {
 }
 
 /**
- * 构造用户消息。
+ * 选出预算内实际送进 prompt 的消息。
  *
- * 把消息包成 JSON 而不是直接拼接：这是 DSH 内置标题 provider 的做法，
- * 用户文本里的任何字符都无法伪装成结构分隔符。
- * @param options - 供提炼的人消息快照。
+ * 选择策略是「按顺序装满」：
+ * - 全部消息放得下时保持全量输入（短会话行为不变）；
+ * - 第一条就超预算时，把它裁到预算内的 UTF-8 前缀，保证标题调用仍有输入；
+ * - 后续消息放不下时停在消息边界，不塞半条消息。
+ *
+ * 返回值同时决定 `messageSeqs`：被丢掉的消息不能算作标题来源。
+ *
+ * @param messages - 服务给的用户消息快照。
+ * @param maxInputBytes - 可选字节上限，默认 {@link MAX_INPUT_BYTES}。
+ * @returns 实际进入 prompt 的消息（首条可能是裁短后的副本）。
+ */
+export function selectMessages(messages, maxInputBytes = MAX_INPUT_BYTES) {
+  const selected = []
+
+  for (const [index, message] of messages.entries()) {
+    if (utf8Bytes(frame([...selected, message])) <= maxInputBytes) {
+      selected.push(message)
+      continue
+    }
+    // 第一条就装不下：裁成预算内最长的 UTF-8 前缀。后续消息装不下则停在边界。
+    if (index === 0) {
+      const text = typeof message.text === 'string' ? message.text : ''
+      let low = 0
+      let high = utf8Bytes(text)
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2)
+        if (utf8Bytes(frame([{ ...message, text: truncateUtf8(text, mid) }])) <= maxInputBytes) low = mid
+        else high = mid - 1
+      }
+      if (low > 0) selected.push({ ...message, text: truncateUtf8(text, low) })
+    }
+    break
+  }
+
+  return selected
+}
+
+/**
+ * 把消息序列化成 user prompt，并保证不超过 `maxInputBytes`。
+ *
+ * 这样既不会像内置 all-prompts provider 那样因超长直接失败，也不会把
+ * 整段历史发给标题模型。
+ *
+ * @param options - `messages`（服务给的用户消息快照）与可选字节上限。
  * @returns 送给模型的 user 文本。
  */
 export function userPrompt(options) {
-  return `从下面这个 JSON 数组里的用户消息生成会话标题：\n${JSON.stringify(options.messages)}`
+  return frame(selectMessages(options.messages, options.maxInputBytes))
 }
