@@ -60,7 +60,7 @@ plugins/session-title-rule/
 仓库级改动：
 
 - `README.md` 插件清单加一行。
-- `docs/tasks/todo.md` 无需改（单插件任务留在插件内）。
+- `docs/tasks/` 无需改（单插件任务留在插件内）。
 
 ## 实施步骤
 
@@ -117,4 +117,3 @@ plugins/session-title-rule/
 - **修正需重启 Desktop 才生效**：Host 半区的 JS 不参与热重载（HMR 只轮询 `client.js`），重装同名包也不重建模块代。重启后有个现场判据——那 10 个已被本插件命名的会话应**全部跳过**补跑（不产生模型调用、标题不变），这同时验证了修正与幂等性。
 - `first-prompt` 的**自动**路径（新会话首条消息后由服务调度）未经端到端观察——本会话与那 10 个会话走的都是补跑的 `refresh()` 路径。两者共用同一个 `generate()`，差别只在 DSH 自己的调度条件（`session-title/src/index.ts:507-508`，已有测试覆盖）。开一个新会话发一条消息即可确认。
 - 契约测试锚定 DSH 源码 checkout，运行版本更新时会有盲区（见上第 1 条）。
-

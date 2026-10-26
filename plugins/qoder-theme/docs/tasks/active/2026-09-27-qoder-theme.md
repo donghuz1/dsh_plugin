@@ -90,7 +90,7 @@ dsh_plugin/
 │   └── contract.test.mjs  # 令牌名/slot 名对照真实 DSH 校验
 ├── README.md
 └── docs/
-    ├── tasks/todo.md      # 本文件
+    ├── tasks/active/2026-09-27-qoder-theme.md  # 本文件
     └── notes/             # 决策笔记
 ```
 

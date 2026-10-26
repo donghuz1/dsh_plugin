@@ -22,7 +22,7 @@ dsh_plugin/
 │   ├── 架构/                    # DSH 机制说明
 │   ├── 指南/                    # 上手路线、demo 教程
 │   ├── 参考/dsh-官方文档/        # 上游文档快照（生成物，勿手改）
-│   └── tasks/todo.md            # 仓库级任务
+│   └── tasks/                   # 仓库级任务：active/ 在办、done/ 结项
 ├── tmp/<yy-MM-dd>/              # 临时文件与调研产物（已 gitignore）
 └── plugins/
     └── <插件名>/                # 一个插件一个目录
@@ -37,7 +37,7 @@ dsh_plugin/
         └── docs/
             ├── notes/           # 本插件的决策笔记
             ├── 证据/            # 本插件的取值/证据
-            └── tasks/todo.md    # 本插件的任务
+            └── tasks/           # 本插件的任务：active/ 在办、done/ 结项
 ```
 
 插件放 `plugins/` 之下而非平铺在仓库根：这样「仓库基础设施（`docs/`、`tmp/`）」与「插件」界限明确，规则可机械判定，`plugins/*` 也是干净的 glob。
@@ -103,8 +103,8 @@ $NODE build.mjs && git diff --quiet -- client.js || echo "client.js 与源不同
 | 跨插件的常驻知识（DSH 机制、通用约定、可复用的接口说明） | `docs/` |
 | **上游 DSH 官方文档的快照** | `docs/参考/dsh-官方文档/`（生成物，勿手改） |
 | 插件专属的取值、证据分级、决策笔记、任务 | `plugins/<插件名>/docs/` |
-| 仓库级任务（目录调整、约定变更、跨插件工作） | `docs/tasks/todo.md` |
-| 单插件任务 | `plugins/<插件名>/docs/tasks/todo.md` |
+| 仓库级任务（目录调整、约定变更、跨插件工作） | `docs/tasks/active/<YYYY-MM-DD>-<slug>.md`，结项移入 `docs/tasks/done/` |
+| 单插件任务 | `plugins/<插件名>/docs/tasks/active/<YYYY-MM-DD>-<slug>.md`，结项移入 `done/` |
 | 临时文件、调研产物、推导脚本 | `tmp/<yy-MM-dd>/<中文子目录>/`，插件专属的再加一层插件名 |
 
 一条内容只有一个家，别处只留指向。
