@@ -16,7 +16,7 @@ DSH 官方文档的中文快照在 [docs/参考/dsh-官方文档](docs/参考/ds
 | --- | --- | --- |
 | [qoder-theme](plugins/qoder-theme/README.md) | `@local/dsh-qoder-theme` | 把桌面端 UI 观感调成 [Qoder](https://qoder.com/zh)（Quest 暗色为基准）的主题皮肤，79 个设计令牌 |
 | [session-title-rule](plugins/session-title-rule/README.md) | `@local/dsh-session-title-rule` | 会话标题统一成 `MMDD｜类型｜主题`：上海日期 + 八类判定 + 主题提炼，接管内置标题 provider |
-| [session-notify](plugins/session-notify/README.md) | `@local/dsh-session-notify` | 审批请求与会话完成时发桌面系统通知，点击回到对应会话 |
+| [session-notify](plugins/session-notify/README.md) | `@local/dsh-session-notify` | 审批/提问/计划确认等待你处理时、以及一轮结束时发桌面系统通知，点击回到对应会话 |
 
 ## 目录
 
