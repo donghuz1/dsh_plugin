@@ -49,6 +49,8 @@
 - 插件是**纯 Host 半区**；`client.js` 是一个空壳，只为与仓库「每个插件都有 client.js」的门禁一致，不注册任何 UI 行为。
 - 接管标题的唯一途径是 `ctx.sessionTitle.register(provider)`，而该服务**全局只接受一个 provider**。因此 patch 层必须先禁用内置的 `session-title-llm`，否则本插件的 `register()` 会抛错、整个 fiber 失败。
 - 插件**不 import 任何 `@deepseek-ai/*`**：从插件目录解析它们会 `MODULE_NOT_FOUND`。与 DSH 的全部接触面是四个服务调用（`sessionTitle` / `llm` / `sessions` / `workspaceRegistry`），所有形状假设由 `test/contract.test.mjs` 对照 DSH 源码校验。
+- **辅助调用显式选最低推理档**：`llm.resolveModelInfo()` 取 `reasoning.efforts[0]`，再经 `llm.prepareCall()` 发起请求。省略 `reasoningEffort` 时适配器会落到连接默认值（可能是 high/max），推理 token 会先吃光 64 token 的输出上限，流以 `finish: max-tokens` 结束且没有文本，provider 只能抛错、标题保留 fallback。查询失败或模型不暴露推理能力时不传该字段，交给适配器默认值。
+- **辅助消息用无身份的 `RequestUserInput`**（`{ role: 'user', content }`）：该请求不落会话日志，不需要伪造 `Message` id 与 source kind。`prepareCall` 返回的 `prepared.config` 已补齐默认值，`prepared.stream()` 要求传入的 call-config 字段与它逐字段一致。
 - 标题字节上限 80（profile 里 `session-title` 行的 `maxTitleBytes`），超出会被服务**静默截断**，所以主题先裁到预算内。
 - **补跑是幂等的**：每次插件加载都会执行，但只处理还没有规则标题的会话——无标题、DSH 落的 `fallback`、以及别的 provider 命名的（如内置 provider 的英文标题）才重跑；**本插件命名的**与用户改名的都跳过。省略后一条判定就会在每次启动时对所有活跃会话白跑一遍模型，标题还会随模型输出漂移。
 
@@ -85,10 +87,10 @@ $NODE --test 'test/*.test.mjs'  # 纯单元 + 契约
 | 注册进去了吗 | `cordis_inspect_query` platform=host provider=Service method=listService → `sessionTitle` | 服务在但 provider 没生效 |
 | 行为对吗 | 首条消息后的左侧栏标题 | 看会话日志里的 warn：`session-title-rule: 会话 <id> 未命名：<原因>` |
 
-常见 warn 原因：模型输出 `KEEP`（判断不出主题）、类型不在八类内、会话尚无模型路由。
+常见 warn 原因：模型输出 `KEEP`（判断不出主题）、类型不在八类内、会话尚无模型路由、模型流以 `max-tokens` 结束（说明推理档没选对，检查 `reasoning.efforts` 是否为空）。
 
 ## 已知局限
 
-- **契约测试锚定 DSH 源码 checkout**（`DSH_SOURCE`，默认 `../deepseek-harness`），而运行中的 DSH 可能比它更新。源码不在时相关用例显式跳过。端到端行为仍以装进 profile 后的实际效果为准。
+- **契约测试锚定 DSH 源码 checkout**（`DSH_SOURCE`，默认 `../deepseek-harness`），而运行中的 DSH 可能比它更新。源码不在时相关用例显式跳过。端到端行为仍以装进 profile 后的实际效果为准；本插件只用两边都存在的 API（`resolveModelInfo` / `prepareCall` / `RequestUserInput`）。
 - `MMDD` 只表达月日，不含年份——与规则书一致。
 - 主题长度上限（20 汉字）与字节预算（80）在 `src/rule.js`、`index.js` 里是常量；若把 profile 的 `maxTitleBytes` 调小，需同步调小，否则标题会被服务静默截断（契约测试会先拦下来）。

@@ -18,11 +18,16 @@ async function* streamOf(chunks) {
   for (const chunk of chunks) yield chunk
 }
 
+/** 默认的模型能力：适配器按偏好顺序给出推理强度，第一档最低。 */
+const DEFAULT_EFFORTS = [{ id: 'off', name: 'Off' }, { id: 'low', name: 'Low' }, { id: 'high', name: 'High' }]
+
 /** 造一个只暴露本插件所用成员的假 ctx。 */
 function makeCtx(options = {}) {
   const state = {
     provider: undefined,
     disposed: false,
+    infoCalls: [],
+    preparedConfigs: [],
     streamOptions: [],
     effects: [],
     refreshed: [],
@@ -51,9 +56,25 @@ function makeCtx(options = {}) {
       },
     },
     llm: {
-      stream(callOptions) {
-        state.streamOptions.push(callOptions)
-        return streamOf(options.chunks ?? [])
+      async resolveModelInfo(provider, model, signal) {
+        state.infoCalls.push({ provider, model, signal })
+        if (options.resolveModelInfoError !== undefined) throw options.resolveModelInfoError
+        return options.modelInfo ?? {
+          provider,
+          id: model,
+          name: model,
+          reasoning: { efforts: DEFAULT_EFFORTS },
+        }
+      },
+      async prepareCall(config, signal) {
+        state.preparedConfigs.push({ config, signal })
+        return {
+          config,
+          stream(callOptions) {
+            state.streamOptions.push(callOptions)
+            return streamOf(options.chunks ?? [])
+          },
+        }
       },
     },
     sessions: { list: () => conversations },
@@ -135,6 +156,19 @@ test('模型调用带上辅助调用标记、会话 id 与取消信号', async (
   const input = request()
   await state.provider.generate(input)
 
+  assert.equal(state.infoCalls.length, 1, '必须先查询模型能力再选推理档')
+  assert.deepEqual(
+    { provider: state.infoCalls[0].provider, model: state.infoCalls[0].model },
+    { provider: 'deepseek-official', model: 'deepseek-flash' },
+  )
+
+  assert.equal(state.preparedConfigs.length, 1, '必须用 prepareCall 绑定适配器注册')
+  const { config, signal } = state.preparedConfigs[0]
+  assert.equal(config.provider, 'deepseek-official')
+  assert.equal(config.model, 'deepseek-flash')
+  assert.equal(typeof config.maxTokens, 'number')
+  assert.ok(signal instanceof AbortSignal, '必须把取消信号传给能力解析与准备阶段')
+
   assert.equal(state.streamOptions.length, 1)
   const options = state.streamOptions[0]
   assert.equal(options.provider, 'deepseek-official')
@@ -142,16 +176,54 @@ test('模型调用带上辅助调用标记、会话 id 与取消信号', async (
   assert.equal(options.purpose, 'session-title', '缺 purpose 会让辅助调用混进主循环请求')
   assert.equal(options.sessionId, 's1')
   assert.ok(options.signal instanceof AbortSignal, '必须把取消信号传下去')
-  assert.equal(typeof options.maxTokens, 'number')
+  assert.equal(options.maxTokens, config.maxTokens, 'stream 的 call-config 必须与 prepared.config 一致')
 
-  // 消息必须是完整 Message 形状（含 id 与 source），与 DSH 内置标题 provider 一致。
-  assert.equal(options.messages.length, 1)
-  const [message] = options.messages
-  assert.equal(message.role, 'user')
-  assert.equal(typeof message.id, 'string')
-  assert.ok(message.id.length > 0, 'Message.id 不能为空')
-  assert.deepEqual(message.source, { kind: 'plugin', plugin: 'session-title-rule' })
-  assert.deepEqual(message.content, [{ type: 'text', text: userPrompt({ messages: input.messages }) }])
+  // 辅助调用不落会话日志，消息用无身份的 RequestUserInput，不伪造 Message id/source。
+  assert.deepEqual(options.messages, [{
+    role: 'user',
+    content: [{ type: 'text', text: userPrompt({ messages: input.messages }) }],
+  }])
+})
+
+test('显式选择模型支持的最低 reasoning 档，避免推理吃光输出预算', async () => {
+  const { ctx, state } = makeCtx({
+    modelInfo: {
+      provider: 'deepseek-official',
+      id: 'deepseek-flash',
+      name: 'deepseek-flash',
+      reasoning: { efforts: [{ id: 'off', name: 'Off' }, { id: 'low', name: 'Low' }] },
+    },
+    chunks: [{ type: 'text-delta', text: '功能｜测试' }, { type: 'finish', reason: { kind: 'stop' } }],
+  })
+  apply(ctx)
+  await state.provider.generate(request())
+
+  assert.equal(state.preparedConfigs[0].config.reasoningEffort, 'off',
+    '必须取 efforts[0]（适配器偏好顺序的最低档）；不传会落到连接默认的 high/max')
+  assert.equal(state.streamOptions[0].reasoningEffort, 'off')
+})
+
+test('模型不暴露推理能力时不传 reasoningEffort，避免 UNSUPPORTED_REASONING_EFFORT', async () => {
+  const { ctx, state } = makeCtx({
+    modelInfo: { provider: 'deepseek-official', id: 'deepseek-flash', name: 'deepseek-flash' },
+    chunks: [{ type: 'text-delta', text: '功能｜测试' }, { type: 'finish', reason: { kind: 'stop' } }],
+  })
+  apply(ctx)
+  await state.provider.generate(request())
+
+  assert.equal('reasoningEffort' in state.preparedConfigs[0].config, false)
+})
+
+test('模型能力查询失败时降级为适配器默认值，不阻断标题生成', async () => {
+  const { ctx, state } = makeCtx({
+    resolveModelInfoError: new Error('adapter exploded'),
+    chunks: [{ type: 'text-delta', text: '功能｜降级' }, { type: 'finish', reason: { kind: 'stop' } }],
+  })
+  apply(ctx)
+  const result = await state.provider.generate(request())
+
+  assert.equal(result.title, '0928｜功能｜降级')
+  assert.equal('reasoningEffort' in state.preparedConfigs[0].config, false)
 })
 
 test('system 提示词列出全部八个类型，并要求不重复项目名', async () => {

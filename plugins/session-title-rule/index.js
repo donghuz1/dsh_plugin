@@ -11,8 +11,6 @@
  * fallback 标题（首条消息截断），这正是规则书里「无法判断主题时保留原名」的
  * 落地点——DSH 的 provider 契约要求返回非空标题，没有第二种表达方式。
  */
-import { randomUUID } from 'node:crypto'
-
 import {
   buildTitle,
   isEligibleSession,
@@ -103,9 +101,16 @@ async function generateTitle(ctx, request) {
 /**
  * 发起一次辅助模型调用并拼回文本。
  *
- * 消息构造成**完整 Message**（id + role + content + source），与 DSH 内置标题
- * provider 的形状逐字一致。不用更新的 `RequestUserInput`（只带 role/content）：
- * 那个形状只在较新的 DSH 版本里存在，完整 Message 两版都接受。
+ * 两处关键点：
+ * - **显式选最低 reasoning 档**。省略 `reasoningEffort` 时适配器会落到连接
+ *   默认值（可能是 high/max），推理 token 先吃光几十 token 的输出预算，流会以
+ *   `finish: max-tokens` 结束而没有任何文本。内置标题 provider 同样取
+ *   `efforts[0]`（"least supported reasoning effort"）。
+ * - **用 `prepareCall` 而不是 `stream`**。它把能力解析与派发绑定到同一次适配器
+ *   注册上；`prepared.config` 是补齐默认值后的最终配置，`prepared.stream`
+ *   要求调用方传入的 call-config 字段与它逐字段一致。
+ * 消息用无身份的 `RequestUserInput`（`{ role, content }`）：辅助调用不落会话
+ * 日志，不需要伪造 Message id 与 source kind。
  * @param ctx - 暴露 llm 的上下文。
  * @param request - 提供路由、会话 id 与取消信号。
  * @param prompts - system 与 user 文本。
@@ -113,19 +118,23 @@ async function generateTitle(ctx, request) {
  */
 async function callModel(ctx, request, prompts) {
   const signal = AbortSignal.any([request.signal, AbortSignal.timeout(TIMEOUT_MS)])
+  const route = { provider: request.route.provider, model: request.route.model }
+  const reasoningEffort = await leastReasoningEffort(ctx, route, signal)
+  const prepared = await ctx.llm.prepareCall({
+    ...route,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    ...reasoningEffort === undefined ? {} : { reasoningEffort },
+  }, signal)
+
   let text = ''
   let finish
-  for await (const chunk of ctx.llm.stream({
-    provider: request.route.provider,
-    model: request.route.model,
+  for await (const chunk of prepared.stream({
+    ...prepared.config,
     messages: [{
-      id: randomUUID(),
       role: 'user',
       content: [{ type: 'text', text: prompts.user }],
-      source: { kind: 'plugin', plugin: PROVIDER_ID },
     }],
     system: prompts.system,
-    maxTokens: MAX_OUTPUT_TOKENS,
     sessionId: request.session.id,
     purpose: 'session-title',
     signal,
@@ -139,6 +148,25 @@ async function callModel(ctx, request, prompts) {
     throw new Error(`模型未正常结束（${finish.kind}）${detail}`)
   }
   return text
+}
+
+/**
+ * 查询模型暴露的推理强度，取适配器偏好顺序的第一档（最低）。
+ *
+ * 查询失败、或模型/适配器不提供推理能力时返回 undefined，交给适配器的默认值；
+ * 这条降级路径保证旧版本运行时（没有 `resolveModelInfo`）不会因此报错。
+ * @param ctx - 暴露 llm 的上下文。
+ * @param route - 会话已记录的主请求路由。
+ * @param signal - 取消信号。
+ * @returns 最低的 reasoning effort id，或 undefined。
+ */
+async function leastReasoningEffort(ctx, route, signal) {
+  try {
+    const info = await ctx.llm.resolveModelInfo(route.provider, route.model, signal)
+    return info?.reasoning?.efforts?.[0]?.id
+  } catch {
+    return undefined
+  }
 }
 
 /**

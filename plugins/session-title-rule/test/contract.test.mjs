@@ -31,7 +31,7 @@ const SOURCES = {
   titleService: 'packages/session/session-title/src/index.ts',
   titleTypes: 'packages/session/session-title/src/types.ts',
   llmTypes: 'packages/llm/llm/src/types.ts',
-  llmMessage: 'packages/llm/llm/src/message.ts',
+  llmRuntime: 'packages/llm/llm/src/index.ts',
   sessions: 'packages/core/session/src/index.ts',
   sessionTypes: 'packages/core/session/src/types.ts',
   workspace: 'packages/workspace/workspace/src/index.ts',
@@ -149,27 +149,68 @@ test('llm 服务暴露 stream(GenerateOptions)', async (t) => {
 
   const options = /export interface GenerateOptions \{([\s\S]*?)\n\}/.exec(src)
   assert.ok(options, '找不到 GenerateOptions 声明')
-  for (const field of ['provider', 'model', 'messages', 'system', 'maxTokens', 'sessionId', 'purpose', 'signal']) {
+  for (const field of ['provider', 'model', 'reasoningEffort', 'messages', 'system', 'maxTokens', 'sessionId', 'purpose', 'signal']) {
     assert.ok(new RegExp(`\\b${field}\\??:`).test(options[1]), `GenerateOptions 缺少字段：${field}`)
   }
   assert.ok(options[1].includes("'session-title'"),
     'purpose 不再接受 session-title；辅助调用会被当成普通请求')
 })
 
-test('辅助调用的消息按完整 Message 形状构造（与内置 provider 一致）', async (t) => {
-  const src = await source(t, 'llmMessage')
+test('辅助调用使用无身份的 RequestUserInput（不伪造 Message id 与 source）', async (t) => {
+  const src = await source(t, 'llmTypes')
   if (src === undefined) return
 
-  const message = /export interface Message \{([\s\S]*?)\n\}/.exec(src)
-  assert.ok(message, '找不到 Message 声明')
-  for (const field of ['id: MessageId', 'role:', 'content: ContentBlock[]', 'source: MessageSource']) {
-    assert.ok(message[1].includes(field), `Message 缺字段：${field}`)
-  }
+  const input = /export interface RequestUserInput \{([\s\S]*?)\n\}/.exec(src)
+  assert.ok(input, '找不到 RequestUserInput 声明；辅助调用的消息形状变了')
+  assert.ok(input[1].includes("readonly role: 'user'"), 'RequestUserInput.role 变了')
+  assert.ok(input[1].includes('readonly content:'), 'RequestUserInput.content 变了')
+  assert.ok(input[1].includes('readonly id?: never'), 'RequestUserInput 不应要求 Message id')
+  assert.ok(input[1].includes('readonly source?: never'), 'RequestUserInput 不应要求 Message source')
 
-  const sources = /export interface MessageSourceMap \{([\s\S]*?)\n\}/.exec(src)
-  assert.ok(sources, '找不到 MessageSourceMap 声明')
-  assert.ok(/plugin:\s*\{\s*kind:\s*'plugin'/.test(sources[1]),
-    "MessageSourceMap 不再接受 plugin 来源；辅助调用的消息 source 要跟着改")
+  assert.ok(/export type RequestMessage = Message \| RequestUserInput/.test(src),
+    'GenerateOptions.messages 不再接受 RequestUserInput')
+})
+
+test('LlmRuntime 暴露 resolveModelInfo 与 prepareCall（能力解析 + 绑定派发）', async (t) => {
+  const src = await source(t, 'llmRuntime')
+  if (src === undefined) return
+
+  assert.ok(/async resolveModelInfo\(\s*provider: string,\s*model: string,/.test(src),
+    '找不到 LlmRuntime.resolveModelInfo(provider, model, signal)；无法查询推理档')
+  assert.ok(/async prepareCall\(config: LlmCallConfig, signal\?: AbortSignal\)/.test(src),
+    '找不到 LlmRuntime.prepareCall(config, signal)；能力解析与派发无法绑定到同一次注册')
+
+  const prepared = /export interface PreparedLlmCall \{([\s\S]*?)\n\}/.exec(src)
+  assert.ok(prepared, '找不到 PreparedLlmCall 声明')
+  assert.ok(prepared[1].includes('readonly config: LlmCallConfig'), 'PreparedLlmCall.config 变了')
+  assert.ok(prepared[1].includes('stream(options: GenerateOptions)'), 'PreparedLlmCall.stream 签名变了')
+})
+
+test('模型能力暴露有序 reasoning efforts，插件取第一档作为最低档', async (t) => {
+  const src = await source(t, 'llmTypes')
+  if (src === undefined) return
+
+  const reasoning = /export interface LlmModelReasoningInfo \{([\s\S]*?)\n\}/.exec(src)
+  assert.ok(reasoning, '找不到 LlmModelReasoningInfo 声明')
+  assert.ok(reasoning[1].includes('efforts: readonly LlmReasoningEffortInfo[]'),
+    'reasoning.efforts 的形状变了')
+  assert.ok(reasoning[1].includes('defaultEffort?: ReasoningEffortId'),
+    'reasoning.defaultEffort 的形状变了')
+
+  const resolved = /export interface LlmResolvedModelInfo[^{]*\{([\s\S]*?)\n\}/.exec(src)
+  assert.ok(resolved, '找不到 LlmResolvedModelInfo 声明')
+  assert.ok(resolved[1].includes('reasoning?: LlmModelReasoningInfo'),
+    'resolveModelInfo 不再返回 reasoning；插件无法选最低推理档')
+})
+
+test('finish 终止原因仍区分 stop / tool-calls / max-tokens', async (t) => {
+  const src = await source(t, 'llmTypes')
+  if (src === undefined) return
+
+  for (const kind of ['stop', 'tool-calls', 'max-tokens']) {
+    assert.ok(new RegExp(`'${kind}':\\s*\\{\\s*kind: '${kind}'`).test(src),
+      `FinishReason 不再包含 ${kind}；非 stop 的失败处理要重新确认`)
+  }
 })
 
 test('流式协议仍以 text-delta / finish 暴露文本与终止原因', async (t) => {
