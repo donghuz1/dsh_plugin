@@ -30,4 +30,9 @@
 
 ## 验证与结果
 
-（发布后补）
+- 插件门禁：29 用例全部通过。
+- 已发布：tag `session-notify-v1.0.0`（指向 `170bd0c`）已推送；`develop` 同步。
+- 真实仓库验证：在空目录执行
+  `pnpm add "git+https://github.com/donghuz1/dsh_plugin.git#session-notify-v1.0.0&path:/plugins/session-notify"` 成功；
+  安装内容包含 `client.js`、`index.js`、`cordis.patch.yml`、`locale/`、`icon.svg`，包名与 `client.js` 模块 id 一致。
+- 待验证：朋友机器上 `install_bundle` 后的通知行为（审批/提问/计划确认/一轮结束）。
