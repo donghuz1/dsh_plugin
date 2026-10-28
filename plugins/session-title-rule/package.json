@@ -4,6 +4,21 @@
   "private": true,
   "type": "module",
   "description": "把 DSH 会话标题统一成 MMDD｜类型｜主题",
+  "license": "MIT",
+  "author": "donghuz1",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "session-title"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/donghuz1/dsh_plugin.git",
+    "directory": "plugins/session-title-rule"
+  },
+  "engines": {
+    "dsh": "^0.2.1-rc.2"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js"

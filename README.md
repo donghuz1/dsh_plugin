@@ -81,3 +81,13 @@ plugin_manager install_bundle /Users/xdd/Code/project/self/dsh_plugin/plugins/<�
 目标必须是**插件的绝对路径**，不是本仓库根——profile 的 `link:` 指向插件目录。不要用 shell 复现安装步骤。
 
 `desktop` profile 由 Electron 独占，CLI 的 `dsh plugin --profile desktop` 会被硬拒。
+
+## 给其他人安装
+
+仓库推到 GitHub 后，按固定 tag 从子目录安装：
+
+```bash
+plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#<tag>&path:/plugins/<插件名>"
+```
+
+`<tag>` 指向包含已构建 `client.js` 的提交；具体 tag 与升级步骤见各插件 README 的「安装」段（如 [session-title-rule](plugins/session-title-rule/README.md)）。

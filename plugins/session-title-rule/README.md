@@ -57,11 +57,23 @@
 
 ## 安装
 
+要求 DSH `^0.2.1-rc.2`（见 `package.json` 的 `engines.dsh`）；不满足时 `install_bundle` 会拒绝安装并回滚。
+
+从 GitHub 安装已发布版本（其他人用这条）：
+
 ```
-plugin_manager install_bundle /Users/xdd/Code/project/self/dsh_plugin/plugins/session-title-rule
+plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#session-title-rule-v1.0.0&path:/plugins/session-title-rule"
+```
+
+本地开发安装（传插件目录的绝对路径）：
+
+```
+plugin_manager install_bundle <插件目录绝对路径>
 ```
 
 `desktop` profile 由 Electron 独占，CLI 的 `dsh plugin --profile desktop` 会被硬拒。
+
+升级：DSH 没有原位升级，先 `plugin_manager remove_bundle @local/dsh-session-title-rule`，再按新 tag 安装。
 
 ## 验证
 
