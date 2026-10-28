@@ -11,11 +11,23 @@
 
 ## 安装
 
+要求 DSH `^0.2.1-rc.2`（见 `package.json` 的 `engines.dsh`）；不满足时 `install_bundle` 会拒绝安装并回滚。插件注入 4 个客户端服务，版本过旧会缺服务而不加载。
+
+从 GitHub 安装已发布版本（其他人用这条）：
+
 ```
-plugin_manager install_bundle /Users/xdd/Code/project/self/dsh_plugin/plugins/session-notify
+plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#session-notify-v1.0.0&path:/plugins/session-notify"
 ```
 
-目标必须是插件的绝对路径。新装 bundle 可热应用；从 worktree 安装后若移动了插件目录，必须重新安装并重启（客户端模块缓存按路径命中，见仓库 AGENTS.md §六）。
+本地开发安装（传插件目录的绝对路径）：
+
+```
+plugin_manager install_bundle <插件目录绝对路径>
+```
+
+新装 bundle 可热应用；从 worktree 安装后若移动了插件目录，必须重新安装并重启（客户端模块缓存按路径命中，见仓库 AGENTS.md §六）。
+
+升级：DSH 没有原位升级，先 `plugin_manager remove_bundle @local/dsh-session-notify`，再按新 tag 安装。
 
 ## 行为
 
@@ -58,9 +70,7 @@ node --test 'test/*.test.mjs'
 ## 验证安装
 
 ```bash
-# 客户端 boot graph 出现本插件
-curl -s -N --max-time 3 http://127.0.0.1:52828/plugins/events \
-  | grep -o '"id":"@local/dsh-session-notify"[^}]*}'
+plugin_manager list_plugins   # 出现 session-notify 行，且 fiberPhase 为 active
 ```
 
 真实通知需要一次审批、提问、计划确认或一轮结束才能观察；当前页面聚焦在本会话时所有提醒都会被刻意抑制。

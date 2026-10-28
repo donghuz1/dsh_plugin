@@ -4,6 +4,21 @@
   "private": true,
   "type": "module",
   "description": "审批、提问、计划确认与一轮结束时发送桌面系统通知",
+  "license": "MIT",
+  "author": "donghuz1",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "desktop-notification"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/donghuz1/dsh_plugin.git",
+    "directory": "plugins/session-notify"
+  },
+  "engines": {
+    "dsh": "^0.2.1-rc.2"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
