@@ -33,4 +33,8 @@
 - 本地模拟：把插件目录复制进临时 git 仓库并打 `session-title-rule-v1.0.0`，用
   `pnpm add "git+file:///tmp/…#session-title-rule-v1.0.0&path:/plugins/session-title-rule"` 安装成功；
   安装后的包名、`client.js` 模块 id、`cordis.patch.yml`、`engines.dsh` 均与仓库一致。
-- 待办：在 GitHub 建公开仓库并 push tag；朋友安装后的标题行为待验证。
+- 已发布：<https://github.com/donghuz1/dsh_plugin>，`develop` 与 tag `session-title-rule-v1.0.0`（指向 `b75a58f`）已推送。
+- 真实仓库验证：在空目录执行
+  `pnpm add "git+https://github.com/donghuz1/dsh_plugin.git#session-title-rule-v1.0.0&path:/plugins/session-title-rule"` 成功；
+  安装后的包名、`client.js` 模块 id、`engines.dsh` 与仓库一致。
+- 待验证：朋友机器上 `install_bundle` 后的标题行为。
