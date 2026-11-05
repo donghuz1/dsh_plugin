@@ -1,0 +1,60 @@
+{
+  "name": "@local/dsh-session-activity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "在侧栏列出运行中与已结束未查看的会话，点一下跳到对应会话",
+  "license": "MIT",
+  "author": "donghuz1",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "sidebar",
+    "session"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/donghuz1/dsh_plugin.git",
+    "directory": "plugins/session-activity"
+  },
+  "engines": {
+    "dsh": "^0.2.1-rc.2"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "src/client.js",
+    "src/model.js",
+    "build.mjs",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test 'test/*.test.mjs'"
+  }
+}
