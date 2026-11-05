@@ -13,13 +13,21 @@
 
 要求 DSH `^0.2.1-rc.2`（见 `package.json` 的 `engines.dsh`）。插件注入 5 个客户端服务，版本过旧会缺服务而不加载。
 
+从 GitHub 安装已发布版本（其他人用这条）：
+
+```
+plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#session-activity-v0.1.0&path:/plugins/session-activity"
+```
+
 本地开发安装（传插件目录的绝对路径）：
 
 ```
 plugin_manager install_bundle <插件目录绝对路径>
 ```
 
-新装 bundle 可热应用；从 worktree 安装后若移动了插件目录，必须重新安装并重启（客户端模块缓存按路径命中，见仓库 AGENTS.md §六）。
+新装 bundle 可热应用；替换同名包或移动插件目录后需要重启应用（客户端模块缓存按路径命中，见仓库 AGENTS.md §六）。
+
+升级：DSH 没有原位升级，先 `plugin_manager remove_bundle @local/dsh-session-activity`，再按新 tag 安装。
 
 ## 行为
 
