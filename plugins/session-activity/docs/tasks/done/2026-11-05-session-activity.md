@@ -99,3 +99,7 @@ plugins/session-activity/
 - 「更多」菜单选中本 id 的路径靠空 `main` 占位补救；上游若改成别的菜单机制，需重新确认 `selectPanel` 的目标仍能落到占位上。
 - 默认展开偏好只在当前浏览器 localStorage。
 - 插件按 worktree 路径装进 profile；合并回主工作树后需从主工作树重新安装并重启。
+
+### 结项
+
+2026-11-05：功能与视觉由用户现场确认；合回 `develop` 并推送 `origin`，任务文件移入 `done/`。
