@@ -103,3 +103,4 @@ plugins/session-activity/
 ### 结项
 
 2026-11-05：功能与视觉由用户现场确认；合回 `develop` 并推送 `origin`，任务文件移入 `done/`。
+发布 tag `session-activity-v0.1.0`（指向 `ae7c6f8`）并推送；profile 改为从主工作树安装，`.agents/worktrees/dsh-c60f8e54-ca96` 与分支已删除。
