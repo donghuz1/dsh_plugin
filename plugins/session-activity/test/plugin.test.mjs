@@ -183,7 +183,15 @@ function listOf(rows) {
 }
 
 function sessionRow(id, patch = {}) {
-  return { id, title: `会话 ${id}`, blank: false, running: false, updatedAt: 1000, ...patch }
+  return {
+    id,
+    title: `会话 ${id}`,
+    cwd: '/Users/xdd/Code/project/self/dsh_plugin',
+    blank: false,
+    running: false,
+    updatedAt: 1000,
+    ...patch,
+  }
 }
 
 function walk(node, visit) {
@@ -357,7 +365,7 @@ function registrationOf(state, slotName) {
 
 const DICTIONARY_KEYS = [
   'panel.label', 'panel.title', 'section.running', 'section.unread', 'empty', 'untitled',
-  'current', 'defaultOpen', 'defaultOpenHint', 'close', 'open.aria',
+  'current', 'defaultOpen', 'defaultOpenHint', 'close', 'open.ariaWithDir', 'noDirectory',
   'time.now', 'time.minutes', 'time.hours', 'time.days', 'time.months', 'time.years',
 ]
 
@@ -437,6 +445,10 @@ test('浮层：运行中/待查看两组、跳过空白与 subagent、点击跳�
   assert.equal(items.length, 2)
   assert.match(textOf(items[0]), /会话 run/)
   assert.match(textOf(items[1]), /会话 done/)
+  const firstDir = byClass(items[0], 'dsh-sa-item-dir')[0]
+  assert.equal(firstDir.children[0], '…/self/dsh_plugin', '行内显示会话目录')
+  assert.equal(firstDir.props.title, '/Users/xdd/Code/project/self/dsh_plugin', '完整路径留给 title')
+  assert.match(items[0].props['aria-label'], /self\/dsh_plugin/, '目录进入可访问名称')
   assert.equal(byClass(flyout, 'dsh-sa-current').length, 1, '当前会话带标记')
   const dots = byClass(flyout, 'dsh-sa-dot').map(dot => dot.props.className)
   assert.equal(dots.filter(value => value.includes('is-running')).length, 1)
@@ -507,7 +519,7 @@ test('标题为空时用「未命名会话」；相对时间走 locale', async (
   const flyout = harnessed.views.flyout.render()
   const item = byClass(flyout, 'dsh-sa-item')[0]
   assert.equal(byClass(item, 'dsh-sa-item-title')[0].children[0], '未命名会话')
-  assert.equal(byClass(item, 'dsh-sa-item-meta')[0].children[0], '刚刚')
+  assert.match(textOf(byClass(item, 'dsh-sa-item-meta')[0]), /刚刚/)
 })
 
 test('卸载：effect disposer 全部可调用，样式被移除', async () => {

@@ -36,7 +36,8 @@ window.__ModuleLoader__.load({
       'defaultOpen': '默认展开',
       'defaultOpenHint': '开启后，打开应用时自动展开这个列表',
       close: '关闭',
-      'open.aria': '跳到会话：{title}',
+      'open.ariaWithDir': '跳到会话：{title}（{dir}）',
+      noDirectory: '无目录',
       'time.now': '刚刚',
       'time.minutes': '{n} 分钟前',
       'time.hours': '{n} 小时前',
@@ -56,7 +57,8 @@ window.__ModuleLoader__.load({
       'defaultOpen': 'Open by default',
       'defaultOpenHint': 'Show this list automatically when the app starts',
       close: 'Close',
-      'open.aria': 'Open session: {title}',
+      'open.ariaWithDir': 'Open session: {title} ({dir})',
+      noDirectory: 'No directory',
       'time.now': 'just now',
       'time.minutes': '{n} min ago',
       'time.hours': '{n} h ago',
@@ -118,6 +120,7 @@ window.__ModuleLoader__.load({
         const task = {
           id,
           title: titleOf(row),
+          cwd: typeof row.cwd === 'string' ? row.cwd : '',
           updatedAt: typeof row.updatedAt === 'number' ? row.updatedAt : 0,
           current: id === currentId,
         }
@@ -149,6 +152,22 @@ window.__ModuleLoader__.load({
       return tasks.running.length + tasks.unread.length
     }
 
+    /**
+     * 目录的紧凑展示：保留末尾两段，前面用 … 省略。
+     * 完整路径留给 title，供悬停查看。
+     * @param path - 会话的 cwd。
+     * @returns 可展示的短路径；空路径返回空串。
+     */
+    function shortPath(path) {
+      if (typeof path !== 'string' || path === '') return ''
+      const trimmed = path.replace(/[\\/]+$/, '')
+      if (trimmed === '') return path === '/' ? '/' : ''
+      const parts = trimmed.split(/[\\/]+/).filter(part => part !== '')
+      if (parts.length === 0) return ''
+      if (parts.length <= 2) return parts.join('/')
+      return `…/${parts.slice(-2).join('/')}`
+    }
+
     function sameRect(left, right) {
       return left.top === right.top && left.left === right.left
         && left.right === right.right && left.bottom === right.bottom
@@ -161,7 +180,7 @@ window.__ModuleLoader__.load({
         for (let index = 0; index < a.length; index += 1) {
           const one = a[index]
           const two = b[index]
-          if (one.id !== two.id || one.title !== two.title
+          if (one.id !== two.id || one.title !== two.title || one.cwd !== two.cwd
             || one.updatedAt !== two.updatedAt || one.current !== two.current) return false
         }
         return true
@@ -516,12 +535,13 @@ window.__ModuleLoader__.load({
 
       function TaskRow(task, kind, now) {
         const title = task.title === '' ? t('untitled') : task.title
+        const directory = shortPath(task.cwd)
         return React.createElement('li', { key: task.id },
           React.createElement('button', {
             type: 'button',
             className: 'dsh-sa-item',
             title,
-            'aria-label': t('open.aria', { title }),
+            'aria-label': t('open.ariaWithDir', { title, dir: directory === '' ? t('noDirectory') : directory }),
             onClick: () => {
               // 切换会话不收起浮层：用户可以连着点下一个任务。
               openSession(task.id)
@@ -534,6 +554,11 @@ window.__ModuleLoader__.load({
           React.createElement('span', { className: 'dsh-sa-item-main' },
             React.createElement('span', { className: 'dsh-sa-item-title' }, title),
             React.createElement('span', { className: 'dsh-sa-item-meta' },
+              React.createElement('span', {
+                className: 'dsh-sa-item-dir',
+                title: task.cwd === '' ? undefined : task.cwd,
+              }, directory === '' ? t('noDirectory') : directory),
+              React.createElement('span', { className: 'dsh-sa-item-sep', 'aria-hidden': 'true' }, '·'),
               relativeLabel(now, task.updatedAt, t),
               task.current
                 ? React.createElement('span', { className: 'dsh-sa-current' }, t('current'))

@@ -51,6 +51,7 @@ function selectTasks(input) {
     const task = {
       id,
       title: titleOf(row),
+      cwd: typeof row.cwd === 'string' ? row.cwd : '',
       updatedAt: typeof row.updatedAt === 'number' ? row.updatedAt : 0,
       current: id === currentId,
     }
@@ -82,6 +83,22 @@ function countTasks(tasks) {
   return tasks.running.length + tasks.unread.length
 }
 
+/**
+ * 目录的紧凑展示：保留末尾两段，前面用 … 省略。
+ * 完整路径留给 title，供悬停查看。
+ * @param path - 会话的 cwd。
+ * @returns 可展示的短路径；空路径返回空串。
+ */
+function shortPath(path) {
+  if (typeof path !== 'string' || path === '') return ''
+  const trimmed = path.replace(/[\\/]+$/, '')
+  if (trimmed === '') return path === '/' ? '/' : ''
+  const parts = trimmed.split(/[\\/]+/).filter(part => part !== '')
+  if (parts.length === 0) return ''
+  if (parts.length <= 2) return parts.join('/')
+  return `…/${parts.slice(-2).join('/')}`
+}
+
 function sameRect(left, right) {
   return left.top === right.top && left.left === right.left
     && left.right === right.right && left.bottom === right.bottom
@@ -94,7 +111,7 @@ function sameTasks(left, right) {
     for (let index = 0; index < a.length; index += 1) {
       const one = a[index]
       const two = b[index]
-      if (one.id !== two.id || one.title !== two.title
+      if (one.id !== two.id || one.title !== two.title || one.cwd !== two.cwd
         || one.updatedAt !== two.updatedAt || one.current !== two.current) return false
     }
     return true
@@ -186,4 +203,4 @@ function createStore(options) {
   }
 }
 
-export { DEFAULT_OPEN_KEY, countTasks, createStore, relativeTime, selectTasks }
+export { DEFAULT_OPEN_KEY, countTasks, createStore, relativeTime, selectTasks, shortPath }

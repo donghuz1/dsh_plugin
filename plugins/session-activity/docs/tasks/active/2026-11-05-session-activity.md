@@ -54,7 +54,7 @@ plugins/session-activity/
 
 - [x] 侧栏「新会话」下方出现「任务动态」行，角标显示运行中 + 待查看总数。
 - [x] 点击该行在右侧展开浮层；再次点击、Esc 或关闭按钮关闭；切换会话（点条目或侧栏换会话）不收起。
-- [x] 浮层分「运行中」「待查看」两组，跳过空会话与 subagent 会话，组内按更新时间倒序。
+- [x] 浮层分「运行中」「待查看」两组，跳过空会话与 subagent 会话，组内按更新时间倒序；每条显示会话目录（短路径 + 完整路径悬停）。
 - [x] 点条目调用 `uiWorkspace.openSession(id)` 并关闭浮层；当前会话带「当前」标记。
 - [x] 浮层底部「默认展开」开关可切换并持久化；开启且有任务时，进入应用自动展开。
 - [x] 窄窗 drawer 模式（侧栏遮罩 z 70 / 侧栏 z 71）下浮层仍可见：portal 到 body，z-index 200。
@@ -79,9 +79,9 @@ plugins/session-activity/
 
 | 项 | 命令 / 判据 | 结果 |
 | --- | --- | --- |
-| 单插件构建 | `node build.mjs` | 通过，生成 735 行 `client.js`；重复构建 sha1 不变 |
+| 单插件构建 | `node build.mjs` | 通过，生成 760 行 `client.js`；重复构建 sha1 不变 |
 | 语法 | `node --check client.js` | 通过 |
-| 单插件测试 | `node --test 'test/*.test.mjs'` | 39 用例 / 39 通过：契约 13、模型 17、装配 9（含 portal / inject / 焦点回归 / 切换会话保持展开） |
+| 单插件测试 | `node --test 'test/*.test.mjs'` | 42 用例 / 42 通过：契约 13、模型 20、装配 9（含 portal / inject / 焦点回归 / 切换会话保持展开 / 目录展示） |
 | 全仓门禁 | `for d in plugins/*/` 构建 + 语法 + 测试 | qoder-theme / session-activity / session-notify / session-title-rule 全绿 |
 | 安装 | `plugin_manager install_bundle .../plugins/session-activity` | `application: applied`、`changed: true`、`warnings: []` |
 | live 侧栏注册 | `cordis_inspect_query` client/Slots `sidebar.panellist` | `registrant: session-activity`、`order: -10`、`active: true`；排在 `plugins(0)` 之前 |

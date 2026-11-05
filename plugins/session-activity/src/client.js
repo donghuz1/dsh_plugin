@@ -33,7 +33,8 @@ window.__ModuleLoader__.load({
       'defaultOpen': '默认展开',
       'defaultOpenHint': '开启后，打开应用时自动展开这个列表',
       close: '关闭',
-      'open.aria': '跳到会话：{title}',
+      'open.ariaWithDir': '跳到会话：{title}（{dir}）',
+      noDirectory: '无目录',
       'time.now': '刚刚',
       'time.minutes': '{n} 分钟前',
       'time.hours': '{n} 小时前',
@@ -53,7 +54,8 @@ window.__ModuleLoader__.load({
       'defaultOpen': 'Open by default',
       'defaultOpenHint': 'Show this list automatically when the app starts',
       close: 'Close',
-      'open.aria': 'Open session: {title}',
+      'open.ariaWithDir': 'Open session: {title} ({dir})',
+      noDirectory: 'No directory',
       'time.now': 'just now',
       'time.minutes': '{n} min ago',
       'time.hours': '{n} h ago',
@@ -327,12 +329,13 @@ window.__ModuleLoader__.load({
 
       function TaskRow(task, kind, now) {
         const title = task.title === '' ? t('untitled') : task.title
+        const directory = shortPath(task.cwd)
         return React.createElement('li', { key: task.id },
           React.createElement('button', {
             type: 'button',
             className: 'dsh-sa-item',
             title,
-            'aria-label': t('open.aria', { title }),
+            'aria-label': t('open.ariaWithDir', { title, dir: directory === '' ? t('noDirectory') : directory }),
             onClick: () => {
               // 切换会话不收起浮层：用户可以连着点下一个任务。
               openSession(task.id)
@@ -345,6 +348,11 @@ window.__ModuleLoader__.load({
           React.createElement('span', { className: 'dsh-sa-item-main' },
             React.createElement('span', { className: 'dsh-sa-item-title' }, title),
             React.createElement('span', { className: 'dsh-sa-item-meta' },
+              React.createElement('span', {
+                className: 'dsh-sa-item-dir',
+                title: task.cwd === '' ? undefined : task.cwd,
+              }, directory === '' ? t('noDirectory') : directory),
+              React.createElement('span', { className: 'dsh-sa-item-sep', 'aria-hidden': 'true' }, '·'),
               relativeLabel(now, task.updatedAt, t),
               task.current
                 ? React.createElement('span', { className: 'dsh-sa-current' }, t('current'))

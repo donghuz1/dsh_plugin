@@ -7,13 +7,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  DEFAULT_OPEN_KEY, countTasks, createStore, relativeTime, selectTasks,
+  DEFAULT_OPEN_KEY, countTasks, createStore, relativeTime, selectTasks, shortPath,
 } from '../src/model.js'
 
 function row(id, patch = {}) {
   return {
     id,
     title: `会话 ${id}`,
+    cwd: '/Users/xdd/Code/project/self/dsh_plugin',
     blank: false,
     running: false,
     updatedAt: 1000,
@@ -97,6 +98,31 @@ test('selectTasks：状态快照缺行时回退到 list 的 running 字段', () 
 test('selectTasks：list 缺失时返回两个空组', () => {
   assert.deepEqual(selectTasks({ list: undefined, statuses: new Map() }), { running: [], unread: [] })
   assert.deepEqual(selectTasks(), { running: [], unread: [] })
+})
+
+test('selectTasks：带上会话目录，缺失时为空串', () => {
+  const list = listOf([
+    row('withDir', { running: true }),
+    row('withoutDir', { running: true, cwd: undefined }),
+  ])
+  const tasks = selectTasks({
+    list,
+    statuses: statusesOf({ withDir: { running: true }, withoutDir: { running: true } }),
+  })
+  const byId = new Map(tasks.running.map(task => [task.id, task]))
+  assert.equal(byId.get('withDir').cwd, '/Users/xdd/Code/project/self/dsh_plugin')
+  assert.equal(byId.get('withoutDir').cwd, '')
+})
+
+test('shortPath：保留末尾两段，完整路径交给 title', () => {
+  assert.equal(shortPath('/Users/xdd/Code/project/self/dsh_plugin'), '…/self/dsh_plugin')
+  assert.equal(shortPath('/tmp'), 'tmp')
+  assert.equal(shortPath('/Users/xdd'), 'Users/xdd')
+  assert.equal(shortPath('/'), '/')
+  assert.equal(shortPath(''), '')
+  assert.equal(shortPath(undefined), '')
+  assert.equal(shortPath('C:\\Users\\xdd\\proj'), '…/xdd/proj')
+  assert.equal(shortPath('/Users/xdd/proj/'), '…/xdd/proj')
 })
 
 test('selectTasks：标题缺失时留空串，交给渲染层本地化', () => {
@@ -208,6 +234,17 @@ test('store：订阅者在任务/开关变化时收到通知，退订后不再�
   assert.equal(calls, 2)
   unsubscribe()
   store.toggle()
+  assert.equal(calls, 2)
+})
+
+test('store：目录变化会触发一次更新（行内目录跟着变）', () => {
+  const store = createStore({ storage: memoryStorage() })
+  let calls = 0
+  store.subscribe(() => { calls += 1 })
+  const task = { id: 'a', title: 'A', cwd: '/one/project', updatedAt: 1, current: false }
+  store.setTasks({ running: [task], unread: [] })
+  assert.equal(calls, 1)
+  store.setTasks({ running: [{ ...task, cwd: '/two/project' }], unread: [] })
   assert.equal(calls, 2)
 })
 
