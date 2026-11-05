@@ -257,10 +257,11 @@ window.__ModuleLoader__.load({
               width: rect.width,
               height: rect.height,
             })
+            // 窄窗抽屉收起时侧栏被平移到屏幕左外；锚点离屏就收起浮层。
+            if (rect.right <= 0 && store.get().open) store.close()
           }
           measure()
           store.setTrigger(button)
-          button.setAttribute('data-session-activity-trigger', '')
           button.setAttribute('aria-haspopup', 'dialog')
           const onClick = event => {
             event.preventDefault()
@@ -268,17 +269,22 @@ window.__ModuleLoader__.load({
             measure()
             store.toggle()
           }
+          const onTransitionEnd = event => {
+            if (event.propertyName === 'transform') measure()
+          }
           button.addEventListener('click', onClick)
+          // 侧栏折叠/展开是 transform 过渡；transitionend 冒泡到 document。
+          document.addEventListener('transitionend', onTransitionEnd)
           window.addEventListener('resize', measure)
           const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : undefined
           if (observer !== undefined) observer.observe(button)
           return () => {
             button.removeEventListener('click', onClick)
-            button.removeAttribute('data-session-activity-trigger')
             button.removeAttribute('aria-haspopup')
             button.removeAttribute('aria-expanded')
             button.removeAttribute('aria-controls')
             store.setTrigger(null)
+            document.removeEventListener('transitionend', onTransitionEnd)
             window.removeEventListener('resize', measure)
             if (observer !== undefined) observer.disconnect()
           }
@@ -328,8 +334,8 @@ window.__ModuleLoader__.load({
             title,
             'aria-label': t('open.aria', { title }),
             onClick: () => {
+              // 切换会话不收起浮层：用户可以连着点下一个任务。
               openSession(task.id)
-              store.close()
             },
           },
           React.createElement('span', {
@@ -384,24 +390,13 @@ window.__ModuleLoader__.load({
         const now = useNow(state.open)
         React.useEffect(() => {
           if (!state.open) return undefined
-          const onPointerDown = event => {
-            const panel = panelRef.current
-            const target = event.target
-            if (panel !== null && panel !== undefined && target !== null
-              && typeof panel.contains === 'function' && panel.contains(target)) return
-            if (target !== null && typeof target.closest === 'function'
-              && target.closest('[data-session-activity-trigger]') !== null) return
-            store.close()
-          }
           const onKeyDown = event => {
             if (event.key !== 'Escape') return
             store.close()
             store.focusTrigger()
           }
-          document.addEventListener('pointerdown', onPointerDown, true)
           document.addEventListener('keydown', onKeyDown)
           return () => {
-            document.removeEventListener('pointerdown', onPointerDown, true)
             document.removeEventListener('keydown', onKeyDown)
           }
         }, [state.open])

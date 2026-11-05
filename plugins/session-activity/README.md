@@ -25,12 +25,14 @@ plugin_manager install_bundle <插件目录绝对路径>
 
 - 席位是 `sidebar.panellist`，`order: -10`：排在「插件」「自动化任务」等全局面板行之前，落点正好在「新会话」正下方。
 - 侧栏把每个 panellist entry 包成一个按钮，点击默认 `selectPanel(id)`。本插件在 glyph 挂载时找到这个按钮，用原生 click 监听先截住事件（`stopPropagation`），把这一行变成浮层开关；`aria-expanded` / `aria-haspopup` 会同步。
-- 浮层把 `shell.overlay` 当作常驻挂载点，内容 portal 到 `document.body`（`z-index: 200`），因此窄窗 drawer 模式下（遮罩 70 / 侧栏 71）也不会被压在后面。按侧栏按钮的 rect 固定定位到右侧；点浮层外、按 Esc、再点一次侧栏行都会关闭。
+- 浮层把 `shell.overlay` 当作常驻挂载点，内容 portal 到 `document.body`（`z-index: 200`），因此窄窗 drawer 模式下（遮罩 70 / 侧栏 71）也不会被压在后面。按侧栏按钮的 rect 固定定位到右侧。
+- 浮层不会因为切换会话（点列表条目或在侧栏换会话）而收起，方便连着跳转；关闭方式是再点一次侧栏行、按 Esc 或点右上角 ×。窄窗抽屉收起、触发器离屏时自动收起。
 - 可访问性：侧栏行的 `aria-label` 带上任务数，`aria-haspopup` / `aria-expanded` / `aria-controls` 指向浮层；Esc 或关闭按钮关闭后焦点回到侧栏行。
 - 数据订阅 `sessions.list` + `uiSession.sessionStatus` + `uiSession.adapter.current`，会话起止/标题变化即时反映；空白会话与 `origin: 'subagent'` 的子会话不列入。
 - `layout.selectPanel` 对未注册的主面板 key 会抛错，而侧栏「更多」的条目由 `sidebar.panellist.actions` 的注册者决定，是否列出本 id 不由本插件控制。为兜住任何直接 `selectPanel('session-activity')` 的路径（包括侧栏 click 拦截失效），插件注册一个空的 `main` 占位（key `session-activity`）：占位被渲染时立即把主面板退回会话并展开浮层，不留下空白页或控制台错误。
 - 三处席位都用 `ctx.slots.inject` 绑定到声明生命周期：某一处暂缺/晚声明不会拖垮其余注册。
 - 浮层底部「默认展开」开关持久化在 localStorage 的 `dsh.session-activity.default-open`：开启后，进入应用且存在任务时自动展开；默认关闭即「点击才展开」。
+- 点条目只跳转、不收起浮层；打开会话后该会话的 `completionUnread` 被清除，会从「待查看」里消失。
 - 客户端插件拿不到 profile 里插件行的 `config`（client-modules 建 entry 时只传 name），所以偏好只能放在 localStorage，不提供 profile 配置项。
 
 ## 限制

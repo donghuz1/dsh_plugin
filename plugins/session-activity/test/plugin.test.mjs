@@ -390,7 +390,6 @@ test('侧栏行：挂载到真实按钮上并接管点击（阻止 selectPanel �
   const harnessed = harness()
   const tree = harnessed.views.trigger.render()
   assert.ok(byClass(tree, 'dsh-sa-glyph').length === 1, 'glyph 必须是 .dsh-sa-glyph')
-  assert.equal(harnessed.button.attributes['data-session-activity-trigger'], '')
   assert.equal(harnessed.button.attributes['aria-haspopup'], 'dialog')
   assert.equal(harnessed.button.attributes['aria-expanded'], 'false')
   assert.equal(byClass(tree, 'dsh-sa-badge').length, 0, '没有任务时不显示角标')
@@ -404,7 +403,7 @@ test('侧栏行：挂载到真实按钮上并接管点击（阻止 selectPanel �
   assert.equal(byClass(flyout, 'dsh-sa-empty').length, 1, '没有任务时显示空状态')
 })
 
-test('浮层：运行中/待查看两组、跳过空白与 subagent、点击跳会话并关闭', async () => {
+test('浮层：运行中/待查看两组、跳过空白与 subagent、点击跳会话且保持展开', async () => {
   const harnessed = harness()
   const rows = [
     sessionRow('run', { running: true, updatedAt: 5000 }),
@@ -448,7 +447,9 @@ test('浮层：运行中/待查看两组、跳过空白与 subagent、点击跳�
 
   items[1].props.onClick()
   assert.deepEqual(harnessed.state.opened, ['done'])
-  assert.equal(harnessed.views.flyout.render(), null, '跳转后关闭浮层')
+  const afterJump = harnessed.views.flyout.render()
+  assert.ok(afterJump, '切换会话后浮层保持展开')
+  assert.equal(byClass(afterJump, 'dsh-sa-item').length, 2)
 })
 
 test('默认展开：偏好开启且有任务时自动出现，底部开关可关掉并持久化', async () => {
@@ -519,7 +520,7 @@ test('卸载：effect disposer 全部可调用，样式被移除', async () => {
   }
 })
 
-test('关闭行为：点外部或 Esc 关闭，点侧栏行自身交给 toggle', async () => {
+test('关闭行为：不再响应点外部；再点侧栏行、Esc、关闭按钮可关', async () => {
   const harnessed = harness({ stored: { [DEFAULT_OPEN_KEY]: '1' } })
   harnessed.publish(
     [sessionRow('run', { running: true, updatedAt: 5000 })],
@@ -527,23 +528,16 @@ test('关闭行为：点外部或 Esc 关闭，点侧栏行自身交给 toggle',
   )
   harnessed.views.trigger.render()
   assert.ok(harnessed.views.flyout.render(), '偏好开启时自动展开')
+  assert.equal(harnessed.document.listeners.get('pointerdown'), undefined,
+    '切换会话不依赖 document 点击监听，点外部不关闭')
 
-  // 点侧栏行自身：document 监听器必须放行，不在这里关闭。
-  const triggerTarget = { closest: selector => (selector === '[data-session-activity-trigger]' ? harnessed.button : null) }
-  lastListener(harnessed.document, 'pointerdown')({ target: triggerTarget })
-  assert.ok(harnessed.views.flyout.render(), '点侧栏行自身不关闭')
+  // 再点侧栏行 toggle 关闭，再点打开。
   harnessed.button.click()
-  assert.equal(harnessed.views.flyout.render(), null, '再由侧栏行自身 toggle 关闭')
+  assert.equal(harnessed.views.flyout.render(), null, '侧栏行自身 toggle 关闭')
+  harnessed.button.click()
+  assert.ok(harnessed.views.flyout.render(), '再点侧栏行重新打开')
 
-  // 再打开，点外部关闭。
-  harnessed.button.click()
-  assert.ok(harnessed.views.flyout.render())
-  lastListener(harnessed.document, 'pointerdown')({ target: { closest: () => null } })
-  assert.equal(harnessed.views.flyout.render(), null, '点浮层外关闭')
-
-  // 再打开，Esc 关闭并把焦点还给侧栏行。
-  harnessed.button.click()
-  assert.ok(harnessed.views.flyout.render())
+  // Esc 关闭并把焦点还给侧栏行。
   harnessed.button.focused = false
   lastListener(harnessed.document, 'keydown')({ key: 'Escape' })
   assert.equal(harnessed.views.flyout.render(), null, 'Esc 关闭')
