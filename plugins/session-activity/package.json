@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-session-activity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "在侧栏列出运行中、待查看与今日会话，点一下跳到对应会话",

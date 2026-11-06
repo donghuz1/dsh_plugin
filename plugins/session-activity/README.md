@@ -19,7 +19,7 @@
 从 GitHub 安装已发布版本（其他人用这条）：
 
 ```
-plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#session-activity-v0.1.0&path:/plugins/session-activity"
+plugin_manager install_bundle "git+https://github.com/donghuz1/dsh_plugin.git#session-activity-v0.2.0&path:/plugins/session-activity"
 ```
 
 本地开发安装（传插件目录的绝对路径）：

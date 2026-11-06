@@ -85,11 +85,15 @@ plugins/session-activity/
 | 全仓门禁 | 4 个插件构建 + 语法 + 测试 | 全绿 |
 | live 投递 | 当前 GUI `:49889` 的 boot graph → bundle | HTTP 200，含 `section.today`，前缀与本地逐字节一致 |
 | live 注册 | `cordis_inspect_query` `sidebar.panellist` | `session-activity` 仍 active |
-| 视觉 | 代理侧无浏览器控制 | 待用户现场确认三组顺序与今日条目 |
+| 视觉 | 代理侧无浏览器控制 | 用户现场确认三组顺序与今日条目可用 |
 
 ### 遗留
 
 - 今日组不设上限，一天内看过的会话多时靠浮层滚动。
 - 归档会话未单独过滤（与运行中/待查看现状一致）。
 - 时区按浏览器本地时区；跨零点最迟一分钟换组。
-- 当前在 `feature/session-activity-today` 分支，未合并/推送，等用户确认后走发布流程。
+- 当前分支已发布：`feature/session-activity-today` 合入 `develop`，tag `session-activity-v0.2.0` 推送。
+
+### 结项
+
+2026-11-06：用户确认可用；版本升至 `0.2.0`，合入 `develop` 并推送，打 tag `session-activity-v0.2.0`，任务文件移入 `done/`。
