@@ -27,7 +27,8 @@ window.__ModuleLoader__.load({
       'panel.title': '任务动态',
       'section.running': '运行中',
       'section.unread': '待查看',
-      empty: '没有正在运行或待查看的任务',
+      'section.today': '今日',
+      empty: '今天还没有会话动态',
       untitled: '未命名会话',
       current: '当前',
       'defaultOpen': '默认展开',
@@ -48,7 +49,8 @@ window.__ModuleLoader__.load({
       'panel.title': 'Task activity',
       'section.running': 'Running',
       'section.unread': 'Finished',
-      empty: 'No running or unseen tasks',
+      'section.today': 'Today',
+      empty: 'No session activity today',
       untitled: 'Untitled session',
       current: 'Current',
       'defaultOpen': 'Open by default',
@@ -422,7 +424,7 @@ window.__ModuleLoader__.load({
         const top = Math.max(8, Math.min(anchor.top - 6, viewportHeight - 160))
         const maxHeight = Math.max(180, viewportHeight - top - 12)
         const total = countTasks(state.tasks)
-        const hasTasks = total > 0
+        const hasTasks = total > 0 || state.tasks.today.length > 0
         const panel = React.createElement('div', {
           ref: panelRef,
           id: PANEL_ID,
@@ -461,6 +463,7 @@ window.__ModuleLoader__.load({
             ? [
               Section('running', 'section.running', state.tasks.running, now),
               Section('unread', 'section.unread', state.tasks.unread, now),
+              Section('today', 'section.today', state.tasks.today, now),
             ]
             : React.createElement('div', { className: 'dsh-sa-empty' }, t('empty'))),
         React.createElement('div', { className: 'dsh-sa-foot' },
@@ -536,15 +539,18 @@ window.__ModuleLoader__.load({
             const statuses = uiSession.sessionStatus.getSnapshot()
             const current = uiSession.adapter.current.getSnapshot()
             const currentId = current === undefined || current === null ? undefined : current.key
-            store.setTasks(selectTasks({ list, statuses, currentId }), currentId)
+            store.setTasks(selectTasks({ list, statuses, currentId, now: Date.now() }), currentId)
           }
           const disposers = [
             sessions.list.subscribe(refresh),
             uiSession.sessionStatus.subscribe(refresh),
             uiSession.adapter.current.subscribe(refresh),
           ]
+          // 「今日」按本地日历日切分：每分钟重算一次，跨过零点时自动换组。
+          const timer = setInterval(refresh, 60000)
           refresh()
           return () => {
+            clearInterval(timer)
             for (const dispose of disposers) dispose()
           }
         }, 'session-activity: live session state')

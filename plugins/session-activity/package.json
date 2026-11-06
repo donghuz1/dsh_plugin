@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "在侧栏列出运行中与已结束未查看的会话，点一下跳到对应会话",
+  "description": "在侧栏列出运行中、待查看与今日会话，点一下跳到对应会话",
   "license": "MIT",
   "author": "donghuz1",
   "keywords": [

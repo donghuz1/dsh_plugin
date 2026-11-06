@@ -6,6 +6,9 @@
 | --- | --- |
 | 运行中 | `uiSession.sessionStatus` 里 `running === true` 的根会话 |
 | 待查看 | `completionUnread === true` 的会话：运行结束、主视图还没打开过 |
+| 今日 | 今天有更新（`updatedAt` 落在本地日历今天）、且不在上两组的根会话 |
+
+三组互斥，同一会话只出现一次；「今日」是回看区，不计入侧栏角标与默认展开判定。
 
 点任意一条调用 `uiWorkspace.openSession(id)` 跳到对应会话；打开后 `completionUnread` 自动清除。纯客户端插件：不改 Host 行为、不写会话日志、不加模型上下文。
 
@@ -37,6 +40,8 @@ plugin_manager install_bundle <插件目录绝对路径>
 - 浮层不会因为切换会话（点列表条目或在侧栏换会话）而收起，方便连着跳转；关闭方式是再点一次侧栏行、按 Esc 或点右上角 ×。窄窗抽屉收起、触发器离屏时自动收起。
 - 可访问性：侧栏行的 `aria-label` 带上任务数，`aria-haspopup` / `aria-expanded` / `aria-controls` 指向浮层；Esc 或关闭按钮关闭后焦点回到侧栏行。
 - 数据订阅 `sessions.list` + `uiSession.sessionStatus` + `uiSession.adapter.current`，会话起止/标题/目录变化即时反映；空白会话与 `origin: 'subagent'` 的子会话不列入。
+- 分组按「运行中 → 待查看 → 今日」互斥优先级；今日用浏览器本地日历日判定，控制器每分钟重算一次，跨零点自动换组。
+- 侧栏角标与「默认展开」只统计运行中 + 待查看；只有今日条目时不触发自动展开，手动打开仍能看到今日组。
 - 每条显示会话标题、目录（末尾两段，完整路径在悬停提示里；没有 `cwd` 时显示「无目录」）、相对时间与「当前」标记。
 - `layout.selectPanel` 对未注册的主面板 key 会抛错，而侧栏「更多」的条目由 `sidebar.panellist.actions` 的注册者决定，是否列出本 id 不由本插件控制。为兜住任何直接 `selectPanel('session-activity')` 的路径（包括侧栏 click 拦截失效），插件注册一个空的 `main` 占位（key `session-activity`）：占位被渲染时立即把主面板退回会话并展开浮层，不留下空白页或控制台错误。
 - 三处席位都用 `ctx.slots.inject` 绑定到声明生命周期：某一处暂缺/晚声明不会拖垮其余注册。
@@ -49,7 +54,8 @@ plugin_manager install_bundle <插件目录绝对路径>
 - 复用了「panellist 行」这个席位：它本应切换主面板，本插件把点击改成浮层。若 DSH 改动 `ui-sidebar` 的 PanelRow 事件结构，点击会落到 `main` 占位，最终仍打开浮层，但会闪一下主面板。
 - 浮层 portal 的 `z-index: 200` 依赖抽屉层仍在 70/71；上游若把抽屉层级抬到 200 以上，需要同步调整。
 - 「默认展开」只存在当前浏览器的 localStorage，换设备/清缓存后回到默认关闭。
-- 「默认展开」只在有任务时展开；没有任务时保留侧栏行与 0 角标，不弹空浮层。
+- 「默认展开」只在有运行中/待查看任务时展开；只有今日条目时不自动弹，但手动打开能看到今日组。
+- 今日组可能较长（一天里看过的会话都算），当前不设上限，靠浮层滚动。
 - 浮层坐标依赖 DOM 测量；侧栏折叠、窗口缩放通过 `ResizeObserver` + `resize` 重算。
 - 没有 Host 半区，也没有视觉回归测试：真实页面渲染仍需人工确认。
 

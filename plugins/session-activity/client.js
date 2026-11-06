@@ -30,7 +30,8 @@ window.__ModuleLoader__.load({
       'panel.title': '任务动态',
       'section.running': '运行中',
       'section.unread': '待查看',
-      empty: '没有正在运行或待查看的任务',
+      'section.today': '今日',
+      empty: '今天还没有会话动态',
       untitled: '未命名会话',
       current: '当前',
       'defaultOpen': '默认展开',
@@ -51,7 +52,8 @@ window.__ModuleLoader__.load({
       'panel.title': 'Task activity',
       'section.running': 'Running',
       'section.unread': 'Finished',
-      empty: 'No running or unseen tasks',
+      'section.today': 'Today',
+      empty: 'No session activity today',
       untitled: 'Untitled session',
       current: 'Current',
       'defaultOpen': 'Open by default',
@@ -68,7 +70,7 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * 任务动态的纯模型：会话快照 → 运行中 / 待查看两组，以及浮层的开关状态机。
+     * 任务动态的纯模型：会话快照 → 运行中 / 待查看 / 今日三组，以及浮层的开关状态机。
      *
      * 单独成文件有两个原因：
      * 1. client.js 是经典脚本，不能 import；build.mjs 会把本文件内联进产物。
@@ -84,23 +86,36 @@ window.__ModuleLoader__.load({
       return typeof row.title === 'string' ? row.title.trim() : ''
     }
 
+    /** 两个时间戳是否落在本地日历的同一天（用日期分量比较，避开 DST 与月末边界）。 */
+    function isSameLocalDay(at, now) {
+      const left = new Date(at)
+      const right = new Date(now)
+      return left.getFullYear() === right.getFullYear()
+        && left.getMonth() === right.getMonth()
+        && left.getDate() === right.getDate()
+    }
+
     /**
-     * 把会话列表与状态快照筛成两组。
+     * 把会话列表与状态快照筛成三组。
      *
-     * 运行中优先：同一会话即使同时带 completionUnread（理论上不会），也只出现在
-     * 「运行中」。空白会话（新会话占位）与 subagent 子会话不进入任务列表——它们
-     * 不是用户要回去接着看的根任务。
-     * @param input - `list` 为 ctx.sessions.list 快照，`statuses` 为 sessionStatus 快照，`currentId` 为当前会话 id。
-     * @returns 两组任务行，组内按 updatedAt 降序。
+     * 互斥优先级：运行中 > 待查看 > 今日。同一会话只出现一次——运行中/待查看是
+     * 待处理项，今日是「今天碰过、已看过」的回看区。空白会话（新会话占位）与
+     * subagent 子会话不进入任务列表——它们不是用户要回去接着看的根任务。
+     * @param input - `list` 为 ctx.sessions.list 快照，`statuses` 为 sessionStatus 快照，`currentId` 为当前会话 id，`now` 为本地时间基准（缺省 Date.now()）。
+     * @returns 三组任务行，组内按 updatedAt 降序。
      */
     function selectTasks(input) {
       const list = input === undefined || input === null ? undefined : input.list
       const statuses = input === undefined || input === null ? undefined : input.statuses
       const currentId = input === undefined || input === null ? undefined : input.currentId
+      const now = input !== undefined && input !== null && typeof input.now === 'number'
+        ? input.now
+        : Date.now()
       const running = []
       const unread = []
+      const today = []
       if (list === undefined || list === null || list.byId === undefined || list.byId === null) {
-        return { running, unread }
+        return { running, unread, today }
       }
       const ids = Array.isArray(list.ids) ? list.ids : Object.keys(list.byId)
       for (const id of ids) {
@@ -116,21 +131,25 @@ window.__ModuleLoader__.load({
           ? status.running === true
           : row.running === true
         const isUnread = status !== undefined && status.completionUnread === true
-        if (!isRunning && !isUnread) continue
+        const updatedAt = typeof row.updatedAt === 'number' ? row.updatedAt : 0
+        const isToday = !isRunning && !isUnread && isSameLocalDay(updatedAt, now)
+        if (!isRunning && !isUnread && !isToday) continue
         const task = {
           id,
           title: titleOf(row),
           cwd: typeof row.cwd === 'string' ? row.cwd : '',
-          updatedAt: typeof row.updatedAt === 'number' ? row.updatedAt : 0,
+          updatedAt,
           current: id === currentId,
         }
         if (isRunning) running.push(task)
-        else unread.push(task)
+        else if (isUnread) unread.push(task)
+        else today.push(task)
       }
       const byRecent = (left, right) => right.updatedAt - left.updatedAt
       running.sort(byRecent)
       unread.sort(byRecent)
-      return { running, unread }
+      today.sort(byRecent)
+      return { running, unread, today }
     }
 
     /** 相对时间分档；阈值与 ui-primitives 的 relativeTime 保持一致。 */
@@ -147,7 +166,7 @@ window.__ModuleLoader__.load({
       return { unit: 'years', n: Math.floor(diff / (365 * DAY)) }
     }
 
-    /** 两组条目总数，用于侧栏行角标。 */
+    /** 待处理条目总数（运行中 + 待查看），用于侧栏行角标与默认展开判定；今日只回看，不计入。 */
     function countTasks(tasks) {
       return tasks.running.length + tasks.unread.length
     }
@@ -176,16 +195,20 @@ window.__ModuleLoader__.load({
 
     function sameTasks(left, right) {
       const sameGroup = (a, b) => {
-        if (a.length !== b.length) return false
-        for (let index = 0; index < a.length; index += 1) {
-          const one = a[index]
-          const two = b[index]
+        const first = Array.isArray(a) ? a : []
+        const second = Array.isArray(b) ? b : []
+        if (first.length !== second.length) return false
+        for (let index = 0; index < first.length; index += 1) {
+          const one = first[index]
+          const two = second[index]
           if (one.id !== two.id || one.title !== two.title || one.cwd !== two.cwd
             || one.updatedAt !== two.updatedAt || one.current !== two.current) return false
         }
         return true
       }
-      return sameGroup(left.running, right.running) && sameGroup(left.unread, right.unread)
+      return sameGroup(left.running, right.running)
+        && sameGroup(left.unread, right.unread)
+        && sameGroup(left.today, right.today)
     }
 
     /**
@@ -201,7 +224,7 @@ window.__ModuleLoader__.load({
       let state = {
         open: false,
         defaultOpen: stored === '1' || (stored !== '0' && settings.defaultOpen === true),
-        tasks: { running: [], unread: [] },
+        tasks: { running: [], unread: [], today: [] },
         currentId: undefined,
         anchor: null,
         focus: false,
@@ -236,8 +259,14 @@ window.__ModuleLoader__.load({
           return () => listeners.delete(listener)
         },
         setTasks(tasks, currentId) {
-          if (sameTasks(state.tasks, tasks) && state.currentId === currentId) return
-          state = { ...state, tasks, currentId }
+          // 兼容只有两组的历史调用；缺组按空数组处理，组件永远拿到三组。
+          const next = {
+            running: tasks !== undefined && tasks !== null && Array.isArray(tasks.running) ? tasks.running : [],
+            unread: tasks !== undefined && tasks !== null && Array.isArray(tasks.unread) ? tasks.unread : [],
+            today: tasks !== undefined && tasks !== null && Array.isArray(tasks.today) ? tasks.today : [],
+          }
+          if (sameTasks(state.tasks, next) && state.currentId === currentId) return
+          state = { ...state, tasks: next, currentId }
           emit()
           maybeAutoOpen()
         },
@@ -628,7 +657,7 @@ window.__ModuleLoader__.load({
         const top = Math.max(8, Math.min(anchor.top - 6, viewportHeight - 160))
         const maxHeight = Math.max(180, viewportHeight - top - 12)
         const total = countTasks(state.tasks)
-        const hasTasks = total > 0
+        const hasTasks = total > 0 || state.tasks.today.length > 0
         const panel = React.createElement('div', {
           ref: panelRef,
           id: PANEL_ID,
@@ -667,6 +696,7 @@ window.__ModuleLoader__.load({
             ? [
               Section('running', 'section.running', state.tasks.running, now),
               Section('unread', 'section.unread', state.tasks.unread, now),
+              Section('today', 'section.today', state.tasks.today, now),
             ]
             : React.createElement('div', { className: 'dsh-sa-empty' }, t('empty'))),
         React.createElement('div', { className: 'dsh-sa-foot' },
@@ -742,15 +772,18 @@ window.__ModuleLoader__.load({
             const statuses = uiSession.sessionStatus.getSnapshot()
             const current = uiSession.adapter.current.getSnapshot()
             const currentId = current === undefined || current === null ? undefined : current.key
-            store.setTasks(selectTasks({ list, statuses, currentId }), currentId)
+            store.setTasks(selectTasks({ list, statuses, currentId, now: Date.now() }), currentId)
           }
           const disposers = [
             sessions.list.subscribe(refresh),
             uiSession.sessionStatus.subscribe(refresh),
             uiSession.adapter.current.subscribe(refresh),
           ]
+          // 「今日」按本地日历日切分：每分钟重算一次，跨过零点时自动换组。
+          const timer = setInterval(refresh, 60000)
           refresh()
           return () => {
+            clearInterval(timer)
             for (const dispose of disposers) dispose()
           }
         }, 'session-activity: live session state')

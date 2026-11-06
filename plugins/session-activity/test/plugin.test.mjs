@@ -364,7 +364,7 @@ function registrationOf(state, slotName) {
 }
 
 const DICTIONARY_KEYS = [
-  'panel.label', 'panel.title', 'section.running', 'section.unread', 'empty', 'untitled',
+  'panel.label', 'panel.title', 'section.running', 'section.unread', 'section.today', 'empty', 'untitled',
   'current', 'defaultOpen', 'defaultOpenHint', 'close', 'open.ariaWithDir', 'noDirectory',
   'time.now', 'time.minutes', 'time.hours', 'time.days', 'time.months', 'time.years',
 ]
@@ -462,6 +462,40 @@ test('浮层：运行中/待查看两组、跳过空白与 subagent、点击跳�
   const afterJump = harnessed.views.flyout.render()
   assert.ok(afterJump, '切换会话后浮层保持展开')
   assert.equal(byClass(afterJump, 'dsh-sa-item').length, 2)
+})
+
+test('今日区域：第三组列出今天更新过、已在别组之外的会话', async () => {
+  const harnessed = harness()
+  const now = Date.now()
+  const rows = [
+    sessionRow('run', { running: true, updatedAt: now - 60_000 }),
+    sessionRow('done', { updatedAt: now - 120_000 }),
+    sessionRow('viewed', { updatedAt: now - 180_000 }),
+    sessionRow('old', { updatedAt: 1000 }),
+  ]
+  harnessed.publish(rows, new Map([
+    ['run', { running: true, completionUnread: false }],
+    ['done', { running: false, completionUnread: true }],
+    ['viewed', { running: false, completionUnread: false }],
+    ['old', { running: false, completionUnread: false }],
+  ]))
+  harnessed.views.trigger.render()
+  harnessed.button.click()
+  const flyout = harnessed.views.flyout.render()
+  assert.equal(byClass(flyout, 'dsh-sa-empty').length, 0)
+
+  const heads = byClass(flyout, 'dsh-sa-section-head').map(textOf)
+  assert.equal(heads.length, 3)
+  assert.ok(heads[0].startsWith('运行中'))
+  assert.ok(heads[1].startsWith('待查看'))
+  assert.ok(heads[2].startsWith('今日'))
+
+  const items = byClass(flyout, 'dsh-sa-item')
+  assert.equal(items.length, 3, '今日只补位，不重复运行中/待查看')
+  assert.match(textOf(items[0]), /会话 run/)
+  assert.match(textOf(items[1]), /会话 done/)
+  assert.match(textOf(items[2]), /会话 viewed/)
+  assert.ok(!textOf(flyout).includes('会话 old'), '昨天更新且已读的会话不进入今日')
 })
 
 test('默认展开：偏好开启且有任务时自动出现，底部开关可关掉并持久化', async () => {

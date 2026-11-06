@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Task activity",
-    "description": "Lists running and finished-unread sessions in the sidebar, one click away."
+    "description": "Lists running, finished-unread, and today's sessions in the sidebar, one click away."
   }
 }

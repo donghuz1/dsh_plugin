@@ -74,6 +74,42 @@ test('selectTasks：running 优先于 completionUnread', () => {
   assert.deepEqual(tasks.unread, [])
 })
 
+test('selectTasks：今日 = 今天更新过、且不在运行中/待查看的根会话', () => {
+  const now = new Date(2026, 10, 6, 12, 0, 0).getTime()
+  const start = new Date(2026, 10, 6, 0, 0, 0).getTime()
+  const yesterday = new Date(2026, 10, 5, 23, 59, 0).getTime()
+  const list = listOf([
+    row('runToday', { running: true, updatedAt: start + 2 * 3600000 }),
+    row('unreadToday', { updatedAt: start + 3 * 3600000 }),
+    row('viewedLate', { updatedAt: start + 4 * 3600000 }),
+    row('viewedEarly', { updatedAt: start + 3600000 }),
+    row('viewedYesterday', { updatedAt: yesterday }),
+    row('never', { updatedAt: 0 }),
+  ])
+  const statuses = statusesOf({
+    runToday: { running: true, completionUnread: false },
+    unreadToday: { running: false, completionUnread: true },
+    viewedLate: { running: false, completionUnread: false },
+    viewedEarly: { running: false, completionUnread: false },
+    viewedYesterday: { running: false, completionUnread: false },
+    never: { running: false, completionUnread: false },
+  })
+  const tasks = selectTasks({ list, statuses, now })
+  assert.deepEqual(tasks.running.map(task => task.id), ['runToday'])
+  assert.deepEqual(tasks.unread.map(task => task.id), ['unreadToday'])
+  assert.deepEqual(tasks.today.map(task => task.id), ['viewedLate', 'viewedEarly'], '今日按更新时间降序，且不含运行中/待查看')
+})
+
+test('selectTasks：今日缺省按本地 Date.now() 判定', () => {
+  const now = Date.now()
+  const list = listOf([row('justViewed', { updatedAt: now })])
+  const tasks = selectTasks({
+    list,
+    statuses: statusesOf({ justViewed: { running: false, completionUnread: false } }),
+  })
+  assert.deepEqual(tasks.today.map(task => task.id), ['justViewed'])
+})
+
 test('selectTasks：组内按 updatedAt 降序', () => {
   const list = listOf([
     row('old', { running: true, updatedAt: 10 }),
@@ -96,8 +132,8 @@ test('selectTasks：状态快照缺行时回退到 list 的 running 字段', () 
 })
 
 test('selectTasks：list 缺失时返回两个空组', () => {
-  assert.deepEqual(selectTasks({ list: undefined, statuses: new Map() }), { running: [], unread: [] })
-  assert.deepEqual(selectTasks(), { running: [], unread: [] })
+  assert.deepEqual(selectTasks({ list: undefined, statuses: new Map() }), { running: [], unread: [], today: [] })
+  assert.deepEqual(selectTasks(), { running: [], unread: [], today: [] })
 })
 
 test('selectTasks：带上会话目录，缺失时为空串', () => {
@@ -144,8 +180,9 @@ test('relativeTime：分档边界与 ui-primitives 一致', () => {
   assert.deepEqual(relativeTime(now + 5000, now), { unit: 'now', n: 0 }, '未来时间按刚刚处理')
 })
 
-test('countTasks：两组相加', () => {
-  assert.equal(countTasks({ running: [{ id: 'a' }], unread: [{ id: 'b' }, { id: 'c' }] }), 3)
+test('countTasks：只算运行中 + 待查看，今日不计入角标', () => {
+  assert.equal(countTasks({ running: [{ id: 'a' }], unread: [{ id: 'b' }, { id: 'c' }], today: [] }), 3)
+  assert.equal(countTasks({ running: [], unread: [], today: [{ id: 'd' }, { id: 'e' }] }), 0)
 })
 
 test('store：默认关闭，toggle 打开并请求焦点，再 toggle 关闭', () => {
@@ -234,6 +271,21 @@ test('store：订阅者在任务/开关变化时收到通知，退订后不再�
   assert.equal(calls, 2)
   unsubscribe()
   store.toggle()
+  assert.equal(calls, 2)
+})
+
+test('store：初始三组为空；今日变化也触发更新；缺组按空数组归一', () => {
+  const store = createStore({ storage: memoryStorage() })
+  assert.deepEqual(store.get().tasks, { running: [], unread: [], today: [] })
+  store.setTasks({ running: [], unread: [] })
+  assert.deepEqual(store.get().tasks, { running: [], unread: [], today: [] }, '缺 today 时归一为空组')
+
+  let calls = 0
+  store.subscribe(() => { calls += 1 })
+  const viewed = { id: 'v', title: 'V', cwd: '', updatedAt: 1, current: false }
+  store.setTasks({ running: [], unread: [], today: [viewed] })
+  assert.equal(calls, 1)
+  store.setTasks({ running: [], unread: [], today: [{ ...viewed, updatedAt: 2 }] })
   assert.equal(calls, 2)
 })
 
